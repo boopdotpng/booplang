@@ -1,4 +1,15 @@
-five
-four
-give
-boop
+define factorial: number
+    if number eq 0
+        return 1
+    let smaller be number minus 1
+    return number * factorial: smaller
+
+define main:
+    let num be 5
+    let fact be factorial: num
+    print fact
+
+    let i be 1 
+    while i lt 10 
+        print i
+        let i be i minus 1
