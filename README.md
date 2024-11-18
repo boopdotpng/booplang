@@ -18,3 +18,5 @@ just run `make`, and you should be able to run `./builds/boop` after.
 - [ ] ast -> ir
 - [ ] ir -> arm assembly
 - [ ] assemble and link the final executable
+- [ ] print/stdout (link to macos)
+- [ ] standard library
