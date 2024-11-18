@@ -2,47 +2,32 @@
 #include <stdlib.h>
 #include <stdio.h>
 
-#define BUFFER_SIZE 4096
-
-char *read_file_to_buffer(const char *filename){
-    long filesize = get_file_size(filename);
-    FILE *file = fopen(filename, "r");
-    if (!file) {
-        perror("error: fopen");
+FileStreamer *create_streamer(const char *filename) {
+    FileStreamer *streamer = malloc(sizeof(FileStreamer));
+    if (!streamer) {
+        perror("could not allocate file streamer:");
         return NULL;
     }
 
-    char *buffer = malloc(filesize);
-    if(fread(buffer, 1, filesize, file) != filesize) {
-        perror("error: fread");
-        return NULL; 
+    streamer->file = fopen(filename, "rb");
+    if (!streamer->file) {
+        perror("failed to open file"); 
+        free(streamer);
+        return NULL;
     }
-    
-    fclose(file);
 
-    return buffer;
+    return streamer;
 }
 
-int write_buffer_to_file(const char *file_name, const char *buffer){
-    return 0;
+size_t stream_ahead(FileStreamer *streamer, unsigned char **output){
+    if (!streamer || !streamer->file) return 0;
+    size_t bytes_read = fread(streamer->buffer, 1, BUFFER_SIZE, streamer->file);
+    *output = streamer->buffer;
+    return bytes_read;
 }
 
-long get_file_size(const char *filename) {
-    FILE *file = fopen(filename, "r");
-    if (!file) {
-        perror("error: fopen");
-        return -1;
-    }
-    if(fseek(file, 0, SEEK_END) != 0) {
-        perror("error: fseek");
-        fclose(file);
-        return -1;
-    }
-
-    long size = ftell(file);
-    if (size == -1) perror("error: ftell");
-
-    fclose(file);
-
-    return size;
+void destroy_streamer(FileStreamer *streamer) {
+    if (!streamer) return;
+    if (streamer->file) fclose(streamer->file);
+    free(streamer);
 }

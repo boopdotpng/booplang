@@ -1,7 +1,13 @@
 #pragma once
+#include <stdio.h>
 
-char *read_file_to_buffer(const char *filename);
+#define BUFFER_SIZE 2048 
 
-int write_buffer_to_file(const char *filename, const char *buffer);
+typedef struct {
+    FILE *file;
+    unsigned char buffer[BUFFER_SIZE];
+} FileStreamer;
 
-long get_file_size(const char *filename);
+FileStreamer *create_streamer(const char *filename);
+size_t stream_ahead(FileStreamer *streamer, unsigned char **output);
+void destroy_streamer(FileStreamer *streamer);

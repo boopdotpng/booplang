@@ -1,28 +1,22 @@
-# compiler and flags
 CC = gcc
 CFLAGS = -Wall -Werror -g
-
-# directories
 SRC_DIR = src
 BUILD_DIR = build
 INCLUDE_DIR = include
 
-# source and object files
-SRC = $(wildcard $(SRC_DIR)/*.c)  # find all .c files in src/
-OBJ = $(patsubst $(SRC_DIR)/%.c, $(BUILD_DIR)/%.o, $(SRC))  # map src/*.c -> build/*.o
+SRC = $(wildcard $(SRC_DIR)/*.c)  
+OBJ = $(patsubst $(SRC_DIR)/%.c, $(BUILD_DIR)/%.o, $(SRC))  
 
-# target executable
 TARGET = boop
 
-# rules
-$(BUILD_DIR)/$(TARGET): $(OBJ)  # build final executable
+$(BUILD_DIR)/$(TARGET): $(OBJ)  
 	$(CC) $(CFLAGS) -o $@ $(OBJ)
 
-$(BUILD_DIR)/%.o: $(SRC_DIR)/%.c  # compile .c -> .o in build/
-	@mkdir -p $(BUILD_DIR)  # ensure build/ directory exists
+$(BUILD_DIR)/%.o: $(SRC_DIR)/%.c  
+	@mkdir -p $(BUILD_DIR)  
 	$(CC) $(CFLAGS) -I$(INCLUDE_DIR) -c $< -o $@
 
-clean:  # clean build artifacts
+clean:  
 	rm -rf $(BUILD_DIR)
 
 .PHONY: clean
