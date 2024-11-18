@@ -19,7 +19,7 @@ FileStreamer *create_streamer(const char *filename) {
     return streamer;
 }
 
-size_t stream_ahead(FileStreamer *streamer, unsigned char **output){
+size_t getline(FileStreamer *streamer, unsigned char **output){
     if (!streamer || !streamer->file) return 0;
     size_t bytes_read = fread(streamer->buffer, 1, BUFFER_SIZE, streamer->file);
     *output = streamer->buffer;

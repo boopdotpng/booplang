@@ -6,7 +6,7 @@ as close to english as you can get, without sacrificing performance. this will c
 just run `make`, and you should be able to run `./builds/boop` after. 
 
 ## todo list
-- [ ] stream file input instead of reading it all into memory
+- [x] stream file input instead of reading it all into memory
 - [ ] finalize a syntax for my language
 - [ ] write the lexer/tokenizer
 - [ ] write an abstract syntax tree
