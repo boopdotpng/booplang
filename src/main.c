@@ -8,12 +8,9 @@ int main(int argc, char *argv[])
     return 1;
   }
   FileStreamer *streamer = create_streamer(argv[1]);
-  unsigned char *data;
-  size_t bytes_read;
-  while ((bytes_read = stream_ahead(streamer, &data)) > 0) {
-      fwrite(data, 1, bytes_read, stdout);
-      putchar('\n');
-      putchar('\n');
+  char *line;
+  while ((line = stream_line(streamer))) {
+    printf("%s", line);
   }
 
   destroy_streamer(streamer);

@@ -1,14 +1,15 @@
 #pragma once
 #include <stdio.h>
 
-// max bytes that we will keep in memory at once when reading a file
-#define BUFFER_SIZE 2048 
+// essentially the max line size.
+#define BUFFER_SIZE 512 
 
 typedef struct {
     FILE *file;
-    unsigned char *buffer;
+    int line;
+    char buffer[BUFFER_SIZE];
 } FileStreamer;
 
 FileStreamer *create_streamer(const char *filename);
-size_t getline(FileStreamer *streamer, unsigned char **output);
+char *stream_line(FileStreamer *streamer);
 void destroy_streamer(FileStreamer *streamer);

@@ -19,11 +19,15 @@ FileStreamer *create_streamer(const char *filename) {
     return streamer;
 }
 
-size_t getline(FileStreamer *streamer, unsigned char **output){
+char *stream_line(FileStreamer *streamer){
     if (!streamer || !streamer->file) return 0;
-    size_t bytes_read = fread(streamer->buffer, 1, BUFFER_SIZE, streamer->file);
-    *output = streamer->buffer;
-    return bytes_read;
+    if (fgets(streamer->buffer, BUFFER_SIZE, streamer->file)) return streamer->buffer;
+
+    if (feof(streamer->file)) return NULL;
+    if (ferror(streamer->file)) perror("error reading file");
+
+    return NULL;
+
 }
 
 void destroy_streamer(FileStreamer *streamer) {
