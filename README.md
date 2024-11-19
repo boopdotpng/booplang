@@ -3,11 +3,17 @@ as close to english as you can get, without sacrificing performance. this will c
 
 
 ## building
-just run `make`, and you should be able to run `./builds/boop` after. 
+This project uses CMake. 
+1. `mkdir build`
+2. `cd build` 
+3. `cmake ..`
+4. `cmake --build .`
+
+There is a hook in CMakeLists that uses `astyle` to format all the code before running. If that step fails, either disable formatting using `cmake -dauto_format=off ..` or install `astyle`. 
 
 ## todo list
 - [x] stream file input instead of reading it all into memory
-- [ ] finalize a syntax for my language
+- [x] finalize a syntax for my language
 - [ ] write the lexer/tokenizer
 - [ ] write an abstract syntax tree
 - [ ] type checking / minor optimizations
