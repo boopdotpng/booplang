@@ -9,7 +9,7 @@ This project uses CMake.
 3. `cmake ..`
 4. `cmake --build .`
 
-There is a hook in CMakeLists that uses `astyle` to format all the code before running. If that step fails, either disable formatting using `cmake -dauto_format=off ..` or install `astyle`. 
+Optionally, you can disable formatting (even if you have astyle installed) by running `cmake -DAUTO_FORMAT=OFF ..`. 
 
 ## todo list
 - [x] stream file input instead of reading it all into memory
