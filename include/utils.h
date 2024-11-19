@@ -1,5 +1,6 @@
 #pragma once
 #include <stdio.h>
+#include <stdbool.h>
 
 // essentially the max line size.
 #define BUFFER_SIZE 512 
