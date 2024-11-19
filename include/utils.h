@@ -3,9 +3,10 @@
 #include <stdbool.h>
 
 // essentially the max line size.
-#define BUFFER_SIZE 512 
+#define BUFFER_SIZE 512
 
-typedef struct {
+typedef struct
+{
     FILE *file;
     int line;
     char buffer[BUFFER_SIZE];
