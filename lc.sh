@@ -1,7 +1,7 @@
 #!/bin/sh
 
 # directories to search
-SRC_DIRS="src include tests examples"
+SRC_DIRS="src include examples"
 
 # file extensions to include
 EXTENSIONS="c h"
