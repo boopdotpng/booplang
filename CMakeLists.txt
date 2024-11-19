@@ -25,14 +25,25 @@ include_directories(${INCLUDE_DIR})
 # create the executable
 add_executable(boop ${SRC_FILES})
 
-# run the format script before build (auto-formatting)
-add_custom_target(
-    format_code
-    COMMAND ${CMAKE_SOURCE_DIR}/format.sh
-    WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
-    COMMENT "Auto-formatting source code..."
-)
-add_dependencies(boop format_code)
+# enable/disable auto-formatting with a cmake option
+option(AUTO_FORMAT "Enable auto-formatting before builds" ON)
+
+# check if the format script exists and enable auto-formatting if AUTO_FORMAT is ON
+if(AUTO_FORMAT)
+    find_program(ASTYLE_EXECUTABLE astyle)
+    if(ASTYLE_EXECUTABLE)
+        message(STATUS "astyle found: ${ASTYLE_EXECUTABLE}")
+        add_custom_target(
+            format_code
+            COMMAND ${CMAKE_SOURCE_DIR}/format.sh
+            WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+            COMMENT "Auto-formatting source code..."
+        )
+        add_dependencies(boop format_code)
+    else()
+        message(WARNING "astyle not found. Skipping auto-formatting.")
+    endif()
+endif()
 
 # hot-reloading: auto-rebuild when files change
 add_custom_target(
