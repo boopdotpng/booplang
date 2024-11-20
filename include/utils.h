@@ -2,16 +2,14 @@
 #include <stdio.h>
 #include <stdbool.h>
 
-// essentially the max line size.
-#define BUFFER_SIZE 512
+// how much of the file to read in at once
+#define CHUNK_SIZE 2048 
 
 typedef struct
 {
     FILE *file;
-    int line;
-    char buffer[BUFFER_SIZE];
 } FileStreamer;
 
 FileStreamer *create_streamer(const char *filename);
-char *stream_line(FileStreamer *streamer);
+char *stream_chunk(FileStreamer *streamer);
 void destroy_streamer(FileStreamer *streamer);

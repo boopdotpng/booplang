@@ -5,11 +5,6 @@
 FileStreamer *create_streamer(const char *filename)
 {
     FileStreamer *streamer = malloc(sizeof(FileStreamer));
-    if (!streamer)
-    {
-        perror("could not allocate file streamer:");
-        return NULL;
-    }
 
     streamer->file = fopen(filename, "rb");
     if (!streamer->file)
@@ -22,17 +17,17 @@ FileStreamer *create_streamer(const char *filename)
     return streamer;
 }
 
-char *stream_line(FileStreamer *streamer)
+size_t stream_chunk(FileStreamer *streamer, char *buffer)
 {
-    if (!streamer || !streamer->file) return 0;
-    if (fgets(streamer->buffer, BUFFER_SIZE, streamer->file)) return streamer->buffer;
+    if (!streamer || !streamer->file || !buffer) 
+        return 0;
 
-    if (feof(streamer->file)) return NULL;
-    if (ferror(streamer->file)) perror("error reading file");
-
-    return NULL;
-
+    size_t bytes_read = fread(buffer, 1, CHUNK_SIZE, streamer->file);
+    if (bytes_read == 0 && ferror(streamer->file))
+        perror("error reading file");
+    return bytes_read; // returns number of bytes read
 }
+
 
 void destroy_streamer(FileStreamer *streamer)
 {
