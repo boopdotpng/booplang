@@ -19,7 +19,7 @@ FileStreamer *create_streamer(const char *filename)
 
 size_t stream_chunk(FileStreamer *streamer, char *buffer)
 {
-    if (!streamer || !streamer->file || !buffer) 
+    if (!streamer || !streamer->file)
         return 0;
 
     size_t bytes_read = fread(buffer, 1, CHUNK_SIZE, streamer->file);
