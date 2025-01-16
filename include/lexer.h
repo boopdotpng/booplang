@@ -12,22 +12,13 @@
 #define MAX_INDENT_LEVEL 32
 #define IDENTIFIER_SIZE 128
 
-// all the partial token states
-typedef enum
-{
-    P_COMMENT,
-    P_NUMBER,
-    P_IDENTIFIER,
-    P_UNKNOWN,
-} PartialStates;
-
 // all the token types
 typedef enum
 {
     // keywords
     DEFINE, FOR, WHILE, IF, ELSE, ELSE_IF, LET,
     BE, IS, GT, LT, LTE, GTE, NE, EQ, RETURN,
-    NOT, AND, OR,
+    NOT, AND, OR, FALSE, TRUE,
 
     // literals
     IDENTIFIER, STRING, NUMBER, FLOAT,
@@ -38,7 +29,8 @@ typedef enum
     // scope
     INDENT, DEDENT, NEWLINE,
 
-    END, UNKNOWN
+    // misc.
+    END
 } TokenType;
 
 // represents an actual token
@@ -49,18 +41,6 @@ typedef struct
     int col;
     int line;
 } Token;
-
-// maintains context for when tokens get cut off by the chunk boundary
-typedef struct
-{
-    char *partial_token; // the leftover token
-    size_t partial_len;
-    size_t partial_capacity; // max size of the leftover buffer; this should only overflow if you make an identifier very very long, which isn't allowed
-    PartialStates partial_state; // what were we in the middle of parsing?
-    bool in_comment;
-    bool has_dot;  // for handling floating point numbers
-    bool start_line; // needed so we don't miscalculate indentation; some whitespace matters
-} LexerState;
 
 typedef struct
 {
@@ -73,6 +53,7 @@ typedef struct
     int current_indent; // current indent level
     int indent_stack[MAX_INDENT_LEVEL]; // track changes in indentation
     int indent_sp; // stack pointer for indent stack
+    bool multiline_str; // """ starts a multiline string, just line in python. needs to be preserved across lines
     Token *tokens;
 } Lexer;
 

@@ -1,6 +1,7 @@
 #include "utils.h"
 #include <stdlib.h>
 #include <stdio.h>
+#include <string.h>
 
 FileStreamer *create_streamer(const char *filename)
 {
@@ -17,15 +18,17 @@ FileStreamer *create_streamer(const char *filename)
     return streamer;
 }
 
-size_t stream_chunk(FileStreamer *streamer, char *buffer)
+size_t stream_line(FileStreamer *streamer, char *buffer)
 {
-    if (!streamer || !streamer->file)
-        return 0;
+    if (!streamer || !streamer->file || !buffer) return 0;
 
-    size_t bytes_read = fread(buffer, 1, CHUNK_SIZE, streamer->file);
-    if (bytes_read == 0 && ferror(streamer->file))
-        perror("error reading file");
-    return bytes_read; // returns number of bytes read
+    if (fgets(buffer, MAX_LINE, streamer->file)) return strlen(buffer);
+
+    if (feof(streamer->file)) return 0;
+
+    else if (ferror(streamer->file)) perror("error reading file");
+
+    return 0;
 }
 
 
