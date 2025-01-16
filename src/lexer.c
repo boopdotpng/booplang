@@ -4,19 +4,6 @@
 #include <ctype.h>
 #include <string.h>
 
-static LexerState *init_lexer_state()
-{
-    LexerState *state = malloc(sizeof(LexerState));
-    state->partial_capacity = 64;
-    state->partial_token = malloc(state->partial_capacity);
-    state->partial_len = 0;
-    state->partial_state= P_UNKNOWN;
-    state->start_line = false;
-    state->in_comment = false;
-    state->has_dot = false;
-    return state;
-}
-
 static Lexer *init_lexer()
 {
     Lexer *l = malloc(sizeof(Lexer));
@@ -29,6 +16,7 @@ static Lexer *init_lexer()
     l->current_indent = 0;
     l->indent_sp = 1;
     l->token_count = 0;
+    l->multiline_str = FALSE;
     return l;
 }
 
@@ -42,51 +30,115 @@ static void add_token(Lexer *lexer, Token token)
     lexer->tokens[lexer->token_count++] = token;
 }
 
-static void append_to_partial(Lexer* lexer, LexerState *state, char c)
+static void parse_indent(Lexer *lexer, char *buffer)
 {
-    if (state->partial_len + 1 >= state->partial_capacity)
+    int spaces = 0, tabs = 0;
+    while (isspace(buffer[lexer->col]))
     {
-        fprintf(stderr, "Exceeded maximum identifier length at line %d", lexer->line);
-        exit(1);
+        if (buffer[lexer->col] == ' ') spaces++;
+        if (buffer[lexer->col] == '\t') tabs++;
+        lexer->col++;
     }
-    state->partial_token[state->partial_len++] = c;
-    state->partial_token[state->partial_len] = '\0';
-}
 
-static void reset_partial(LexerState *state)
-{
-    state->partial_len = 0;
-    state->partial_token[0] = '\0';
-    state->partial_state= P_UNKNOWN;
-    state->has_dot = 0;
-    state->in_comment = false;
-    state->has_dot = false;
-    state->start_line = false;
-}
-
-Lexer *lex(const char *filename)
-{
-    FileStreamer *streamer = create_streamer(filename);
-    Lexer *lexer = init_lexer();
-    LexerState *state = init_lexer_state();
-
-    char buffer[CHUNK_SIZE];
-    size_t bytes_read;
-
-    while ((bytes_read = stream_chunk(streamer, buffer)) > 0)
+    // comment detection
+    if (buffer[lexer->col] == '#')
     {
-        for(size_t i = 0; i < bytes_read; i++)
+        while (buffer[lexer->col] != '\n' && buffer[lexer->col] != '\0') lexer->col++;
+        return;
+    }
+
+    // skip empty lines
+    if (buffer[lexer->col] == '\n' || buffer[lexer->col] == '\0')
+        return;
+
+    // first indent?
+    if (lexer->indent_style == UNSET && ( (spaces > 0) != (tabs > 0) ))
+    {
+        if (spaces > 0)
         {
-            putc(buffer[i], stdout);
+            lexer->indent_style = SPACES;
+            lexer->spaces_per_level = spaces;
+        }
+        else
+        {
+            lexer->indent_style = TABS;
         }
     }
 
-    // Clean up
-    free(state->partial_token);
-    free(state);
-    destroy_streamer(streamer);
+    // check for mixed tab and space usage
+    if (spaces > 0 && tabs > 0)
+    {
+        fprintf(stderr, "Use of tabs and spaces at %d:%d, which is forbidden.\n", lexer->line, lexer->col);
+        exit(1);
+    }
 
-    return lexer;
+    // make sure user indents by the same amount each time
+    if (lexer->indent_style == SPACES)
+    {
+        if (spaces % lexer->spaces_per_level != 0)
+        {
+            fprintf(stderr, "Inconsistent space indentation near %d:%d. Expected a multiple of %d.\n", lexer->line, lexer->col, lexer->spaces_per_level);
+            exit(1);
+        }
+        lexer->current_indent = spaces / lexer->spaces_per_level;
+    }
+    else
+    {
+        lexer->current_indent = tabs;
+    }
+
+    // handle an indent
+    if (lexer->current_indent > lexer->indent_stack[lexer->indent_sp-1])
+    {
+        if (lexer->current_indent != lexer->indent_stack[lexer->indent_sp-1] + 1)
+        {
+            fprintf(stderr, "Invalid indentation increase at line %d\n", lexer->line);
+            exit(1);
+        }
+
+        if(lexer->indent_sp >= MAX_INDENT_LEVEL)
+        {
+            fprintf(stderr, "Maximum indentation depth exceeded at line %d\n", lexer->line);
+            exit(1);
+        }
+        lexer->indent_stack[lexer->indent_sp] = lexer->current_indent;
+        lexer->indent_sp++;
+
+        // add indent token
+        Token indent =
+        {
+            .col=lexer->col,
+            .line=lexer->line,
+            .type=INDENT,
+        };
+        add_token(lexer, indent);
+    }
+
+
+    // handle an dedent
+    else
+    {
+        // pop indents off stack until we get to the current level
+        while (lexer->indent_sp > 1 && lexer->indent_stack[lexer->indent_sp - 1] > lexer->current_indent)
+        {
+            lexer->indent_sp--;
+
+            Token token =
+            {
+                .type=DEDENT,
+                .line=lexer->line,
+                .col=lexer->col,
+            };
+            add_token(lexer, token);
+        }
+
+        if (lexer->indent_stack[lexer->indent_sp- 1] != lexer->current_indent)
+        {
+            fprintf(stderr, "Error: Invalid dedentation level at line %d\n",
+                    lexer->line);
+            exit(1);
+        }
+    }
 }
 
 static const char *token_type_str(TokenType t)
@@ -131,6 +183,10 @@ static const char *token_type_str(TokenType t)
         return "and";
     case OR:
         return "or";
+    case FALSE:
+        return "false";
+    case TRUE:
+        return "true";
     case IDENTIFIER:
         return "identifier";
     case STRING:
@@ -155,8 +211,6 @@ static const char *token_type_str(TokenType t)
         return "dedent";
     case NEWLINE:
         return "newline";
-    case UNKNOWN:
-        return "unknown";
     case END:
         return "eof";
     default:
@@ -167,4 +221,37 @@ static const char *token_type_str(TokenType t)
 void print_token(Token *token)
 {
     printf("type=%s, ident=%s, col=%u, line=%u\n", token_type_str(token->type), token->ident, token->col, token->line);
+}
+
+
+Lexer *lex(const char *filename)
+{
+    FileStreamer *streamer = create_streamer(filename);
+    Lexer *lexer = init_lexer();
+
+    char buffer[MAX_LINE];
+    size_t bytes_read;
+
+    while ((bytes_read = stream_line(streamer, buffer)) > 0)
+    {
+        lexer->col=0;
+        parse_indent(lexer, buffer);
+        lexer->line++;
+    }
+
+    // handle remaining dedents
+    while (lexer->indent_sp > 1)
+    {
+        lexer->indent_sp--;
+        Token dedent_token =
+        {
+            .type = DEDENT,
+            .line = lexer->line,
+            .col = lexer->col,
+        };
+        add_token(lexer, dedent_token);
+    }
+
+    destroy_streamer(streamer);
+    return lexer;
 }
