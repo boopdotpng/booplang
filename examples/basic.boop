@@ -4,7 +4,7 @@ define factorial: number
     let smaller be number minus 1
     return number * factorial: smaller
 
-define main: // this is a comment
+define main: # this is a comment
     let num be 5
     let fact be factorial: num
     print fact
@@ -13,3 +13,5 @@ define main: // this is a comment
     while i lt 10 
         print i
         let i be i minus 1
+
+                    # line should be ignored

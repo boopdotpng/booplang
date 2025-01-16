@@ -1,43 +1,45 @@
 cmake_minimum_required(VERSION 3.20)
 project(boop LANGUAGES C)
 
-# set default build type
-if(NOT CMAKE_BUILD_TYPE)
-    set(CMAKE_BUILD_TYPE Debug) # or Release if preferred
+set(SUPPORTED_BUILD_TYPES "Debug" "Release" "RelWithDebInfo" "MinSizeRel")
+
+if(NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
+    message(STATUS "No build type specified. Defaulting to Debug.")
+    set(CMAKE_BUILD_TYPE Debug CACHE STRING "Choose the type of build." FORCE)
 endif()
 
-# define directories
-set(SRC_DIR ${CMAKE_SOURCE_DIR}/src)
-set(INCLUDE_DIR ${CMAKE_SOURCE_DIR}/include)
-set(BUILD_DIR ${CMAKE_SOURCE_DIR}/build)
+if(CMAKE_BUILD_TYPE AND NOT CMAKE_BUILD_TYPE IN_LIST SUPPORTED_BUILD_TYPES)
+    message(WARNING "Build type '${CMAKE_BUILD_TYPE}' is not supported. Falling back to Debug.")
+    set(CMAKE_BUILD_TYPE Debug CACHE STRING "Choose the type of build." FORCE)
+endif()
 
-# set output directories for binaries and object files
-set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${BUILD_DIR})
-set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${BUILD_DIR})
-set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${BUILD_DIR})
+set_property(CACHE CMAKE_BUILD_TYPE PROPERTY STRINGS ${SUPPORTED_BUILD_TYPES})
 
-# find all source files in src/
+set(SRC_DIR "${CMAKE_SOURCE_DIR}/src")
+set(INCLUDE_DIR "${CMAKE_SOURCE_DIR}/include")
+set(BUILD_DIR "${CMAKE_SOURCE_DIR}/build")
+
+set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${BUILD_DIR}")
+set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY "${BUILD_DIR}")
+set(CMAKE_LIBRARY_OUTPUT_DIRECTORY "${BUILD_DIR}")
+
 file(GLOB SRC_FILES "${SRC_DIR}/*.c")
 
-# include headers
-include_directories(${INCLUDE_DIR})
+include_directories("${INCLUDE_DIR}")
 
-# create the executable
 add_executable(boop ${SRC_FILES})
 
-# enable/disable auto-formatting with a cmake option
 option(AUTO_FORMAT "Enable auto-formatting before builds" ON)
 
-# check if the format script exists and enable auto-formatting if AUTO_FORMAT is ON
 if(AUTO_FORMAT)
     find_program(ASTYLE_EXECUTABLE astyle)
     if(ASTYLE_EXECUTABLE)
-        message(STATUS "astyle found: ${ASTYLE_EXECUTABLE}")
+        message(STATUS "Found astyle at: ${ASTYLE_EXECUTABLE}")
         add_custom_target(
             format_code
-            COMMAND ${CMAKE_SOURCE_DIR}/format.sh
-            WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
-            COMMENT "Auto-formatting source code..."
+            COMMAND "${CMAKE_SOURCE_DIR}/format.sh"
+            WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}"
+            COMMENT "Auto-formatting source code with astyle..."
         )
         add_dependencies(boop format_code)
     else()
@@ -45,16 +47,14 @@ if(AUTO_FORMAT)
     endif()
 endif()
 
-# hot-reloading: auto-rebuild when files change
 add_custom_target(
     hot_reload
-    COMMAND cmake --build ${CMAKE_BINARY_DIR}
-    WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
+    COMMAND "${CMAKE_COMMAND}" --build "${CMAKE_BINARY_DIR}"
+    WORKING_DIRECTORY "${CMAKE_BINARY_DIR}"
     COMMENT "Hot-reloading changes..."
 )
 
-# optional: toggle auto-formatting
-option(AUTO_FORMAT "Enable auto-formatting before builds" ON)
-if(AUTO_FORMAT)
-    add_dependencies(boop format_code)
+if(CMAKE_BUILD_TYPE STREQUAL "Debug")
+    target_compile_definitions(boop PRIVATE DEBUG_MODE)
+elseif(CMAKE_BUILD_TYPE STREQUAL "Release")
 endif()
