@@ -6,8 +6,7 @@
 // TODO: change this when the tokenizer is working
 #define MAX_LINE 256
 
-typedef struct
-{
+typedef struct {
     FILE *file;
 } FileStreamer;
 

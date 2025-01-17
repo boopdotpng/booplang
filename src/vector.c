@@ -2,12 +2,14 @@
 #include <stdio.h>
 #include <string.h>
 
-vector *create_vector(size_t elem_size) {
+vector *create_vector(size_t elem_size, int initial_size) {
     vector *arr = malloc(sizeof(vector));
-    arr->data = malloc(elem_size * INITIAL_SIZE);
+    arr->data = malloc(elem_size * initial_size);
     arr->size = 0;
-    arr->capacity = elem_size * INITIAL_SIZE;
+    arr->capacity = elem_size * initial_size;
     arr->elem_size = elem_size;
+
+    return arr;
 }
 
 void resize_array(vector *arr) {
