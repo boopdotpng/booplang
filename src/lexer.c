@@ -110,76 +110,62 @@ static void parse_indent(lexer *lexer, char *buffer) {
 
 static const char *token_type_str(token_type t) {
     switch (t) {
-    case DEFINE:
-        return "define";
-    case FOR:
-        return "for";
-    case WHILE:
-        return "while";
-    case IF:
-        return "if";
-    case ELSE:
-        return "else";
-    case ELSE_IF:
-        return "else if";
-    case LET:
-        return "let";
-    case BE:
-        return "be";
-    case IS:
-        return "is";
-    case GT:
-        return ">";
-    case LT:
-        return "<";
-    case LTE:
-        return "<=";
-    case GTE:
-        return ">=";
-    case NE:
-        return "!=";
-    case EQ:
-        return "==";
-    case RETURN:
-        return "return";
-    case NOT:
-        return "not";
-    case AND:
-        return "and";
-    case OR:
-        return "or";
-    case FALSE:
-        return "false";
-    case TRUE:
-        return "true";
-    case IDENTIFIER:
-        return "identifier";
-    case STRING:
-        return "string";
-    case NUMBER:
-        return "number";
-    case FLOAT:
-        return "float";
-    case COLON:
-        return ":";
-    case FSLASH:
-        return "/";
-    case COMMA:
-        return ",";
-    case LPAREN:
-        return "(";
-    case RPAREN:
-        return ")";
-    case INDENT:
-        return "indent";
-    case DEDENT:
-        return "dedent";
-    case NEWLINE:
-        return "newline";
-    case END:
-        return "eof";
-    default:
-        return "unknown";
+        // keywords
+        case FN: return "FN";
+        case FOR: return "FOR";
+        case WHILE: return "WHILE";
+        case IF: return "IF";
+        case ELSE: return "ELSE";
+        case ELSE_IF: return "ELSE_IF";
+        case IS: return "IS";
+        case RETURN: return "RETURN";
+        case BY: return "BY";
+        case FROM: return "FROM";
+        case IMPORT: return "IMPORT";
+        case TO: return "TO";
+        case PRINT: return "PRINT";
+        case MATCH: return "MATCH";
+
+        // operators
+        case NOT: return "NOT";
+        case AND: return "AND";
+        case OR: return "OR";
+        case FALSE: return "FALSE";
+        case TRUE: return "TRUE";
+        case MODULU: return "MODULU";
+        case MUL: return "MUL";
+        case DIV: return "DIV";
+        case INT_DIV: return "INT_DIV";
+        case ADD: return "ADD";
+        case SUB: return "SUB";
+        case ADD_ONE: return "ADD_ONE";
+        case SUB_ONE: return "SUB_ONE";
+        case EQ: return "EQ";
+        case COMP_EQ: return "COMP_EQ";
+
+        // literals
+        case IDENTIFIER: return "IDENTIFIER";
+        case STRING: return "STRING";
+        case NUMBER: return "NUMBER";
+        case FLOAT: return "FLOAT";
+
+        // single characters
+        case COMMA: return "COMMA";
+        case LPAREN: return "LPAREN";
+        case RPAREN: return "RPAREN";
+        case LSQPAREN: return "LSQPAREN";
+        case RSQPAREN: return "RSQPAREN";
+
+        // scope
+        case INDENT: return "INDENT";
+        case DEDENT: return "DEDENT";
+        case NEWLINE: return "NEWLINE";
+
+        // misc.
+        case END: return "END";
+
+        // default case for unknown token types
+        default: return "UNKNOWN_TOKEN";
     }
 }
 

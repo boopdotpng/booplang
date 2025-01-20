@@ -19,15 +19,20 @@
 // all the token types
 typedef enum {
     // keywords
-    DEFINE, FOR, WHILE, IF, ELSE, ELSE_IF, LET,
-    BE, IS, GT, LT, LTE, GTE, NE, EQ, RETURN,
-    NOT, AND, OR, FALSE, TRUE,
+    FN, FOR, WHILE, IF, ELSE, ELSE_IF, 
+    IS, RETURN, BY, FROM, IMPORT, TO,
+    PRINT, MATCH, // since print doesn't require parenthesis
+
+    // operators
+    NOT, AND, OR, FALSE, TRUE, MODULU,
+    MUL, DIV, INT_DIV, ADD, SUB, ADD_ONE, SUB_ONE, // ++, --
+    EQ, COMP_EQ, // ==
 
     // literals
     IDENTIFIER, STRING, NUMBER, FLOAT,
 
     // single characters
-    COLON, FSLASH, COMMA, LPAREN, RPAREN,
+    COMMA, LPAREN, RPAREN, LSQPAREN, RSQPAREN,
 
     // scope
     INDENT, DEDENT, NEWLINE,
