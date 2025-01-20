@@ -8,8 +8,8 @@
 
 typedef struct {
     FILE *file;
-} FileStreamer;
+} file_streamer;
 
-FileStreamer *create_streamer(const char *filename);
-size_t stream_line(FileStreamer *streamer, char *buffer);
-void destroy_streamer(FileStreamer *streamer);
+file_streamer *create_streamer(const char *filename);
+size_t stream_line(file_streamer *streamer, char *buffer);
+void destroy_streamer(file_streamer *streamer);

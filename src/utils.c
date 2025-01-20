@@ -3,8 +3,8 @@
 #include <stdio.h>
 #include <string.h>
 
-FileStreamer *create_streamer(const char *filename) {
-    FileStreamer *streamer = malloc(sizeof(FileStreamer));
+file_streamer *create_streamer(const char *filename) {
+    file_streamer *streamer = malloc(sizeof(file_streamer));
 
     streamer->file = fopen(filename, "rb");
     if (!streamer->file) {
@@ -16,7 +16,7 @@ FileStreamer *create_streamer(const char *filename) {
     return streamer;
 }
 
-size_t stream_line(FileStreamer *streamer, char *buffer) {
+size_t stream_line(file_streamer *streamer, char *buffer) {
     if (!streamer || !streamer->file || !buffer) {
         return 0;
     }
@@ -37,7 +37,7 @@ size_t stream_line(FileStreamer *streamer, char *buffer) {
 }
 
 
-void destroy_streamer(FileStreamer *streamer) {
+void destroy_streamer(file_streamer *streamer) {
     if (!streamer) {
         return;
     }

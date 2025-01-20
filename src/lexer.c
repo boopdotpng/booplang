@@ -1,10 +1,11 @@
 #include "lexer.h"
 #include "utils.h"
 #include <stdlib.h>
-#include <ctype.h>
 #include <string.h>
+#include <ctype.h>
 #include "vector.h"
 #include "intern.h"
+#include "trie.h"
 
 // a file can be indented using spaces or tabs, but it must be consistent
 // spaces are just set using a number (2 for two spaces, etc)
@@ -287,12 +288,52 @@ static char peek(lexer *l, char *buffer, int count, size_t buffer_size) {
     return '\0';
 }
 
-//
+// trie intialization
+static trie_node *intialize_trie() {
+    trie_node *node = create_trie_node();
 
+    // arithmetic operators
+    insert_symbol(node, "+", ADD);
+    insert_symbol(node, "++", ADD_ONE);
+    insert_symbol(node, "+=", ADD_EQ);
+    insert_symbol(node, "-", SUB);
+    insert_symbol(node, "--", SUB_ONE);
+    insert_symbol(node, "-=", SUB_EQ);
+    insert_symbol(node, "*", MUL);
+    insert_symbol(node, "*=", MUL_EQ);
+    insert_symbol(node, "/", DIV);
+    insert_symbol(node, "/=", DIV_EQ);
+    insert_symbol(node, "//", INT_DIV);
+    insert_symbol(node, "//=", INTDIV_EQ);
+    insert_symbol(node, "%", MODULU);
+
+    // comparison operators
+    insert_symbol(node, ">", GT);
+    insert_symbol(node, ">=", GTE);
+    insert_symbol(node, "<", LT);
+    insert_symbol(node, "<=", LTE);
+    insert_symbol(node, "==", COMP_EQ);
+    insert_symbol(node, "=", EQ);
+
+    // logical operators
+    insert_symbol(node, "&&", AND);
+    insert_symbol(node, "||", OR);
+    insert_symbol(node, "!", NOT);
+
+    // miscellaneous symbols
+    insert_symbol(node, "(", LPAREN);
+    insert_symbol(node, ")", RPAREN);
+    insert_symbol(node, "[", LSQPAREN);
+    insert_symbol(node, "]", RSQPAREN);
+    insert_symbol(node, ",", COMMA);
+
+    return node;
+}
 
 lexer_result *lex(const char *filename) {
-    FileStreamer *streamer = create_streamer(filename);
+    file_streamer *streamer = create_streamer(filename);
     lexer *lexer = init_lexer();
+    trie_node *root = intialize_trie();
 
     char buffer[MAX_LINE];
     size_t bytes_read;
@@ -306,52 +347,6 @@ lexer_result *lex(const char *filename) {
             char c = buffer[lexer->col];
             if (c == ';') // comment character
                 break;
-
-            // skip whitespace
-            if (isspace(c)) {
-                lexer->col++;
-                continue;
-            }
-
-            // check single character tokens
-            switch (c) {
-            case '+':
-                if (PEEK(1) == '+')
-                    printf("%s\n", "++ found");
-                if (PEEK(1) == '=')
-                    printf("%s\n", "+= found");
-                break;
-            case '-':
-                break;
-            case '*':
-                break;
-            case '/':
-                break;
-            case '"':
-                break;
-            case '!':
-                break;
-            case '%':
-                break;
-            case '&':
-                break;
-            case '|':
-                break;
-            case '=':
-                break;
-            case '(':
-                break;
-            case ')':
-                break;
-            case '[':
-                break;
-            case ']':
-                break;
-            case ',':
-                break;
-            default:
-                break;
-            }
 
             // numbers
 
