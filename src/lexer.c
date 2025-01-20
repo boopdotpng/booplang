@@ -16,33 +16,7 @@
 #define MAX_INDENT_LEVEL 32
 #define IDENTIFIER_SIZE 128
 
-#define MAX_IDENTIFIERS 1024
-#define MAX_IDENTIFIER_LEN 128
-
-// all the token types
-typedef enum {
-    // keywords
-    FN, FOR, WHILE, IF, ELSE, ELSE_IF,
-    IS, RETURN, BY, FROM, IMPORT, TO,
-    PRINT, MATCH, // since print doesn't require parenthesis
-
-    // operators
-    NOT, AND, OR, FALSE, TRUE, MODULU,
-    MUL, DIV, INT_DIV, ADD, SUB, ADD_ONE, SUB_ONE, // ++, --
-    EQ, COMP_EQ, // ==
-
-    // literals
-    IDENTIFIER, STRING, NUMBER, FLOAT,
-
-    // single characters
-    COMMA, LPAREN, RPAREN, LSQPAREN, RSQPAREN,
-
-    // scope
-    INDENT, DEDENT, NEWLINE,
-
-    // misc.
-    END
-} token_type;
+#define PEEK(count) peek((lexer), (buffer), (count), (bytes_read))
 
 // represents an actual token
 struct token {
@@ -52,7 +26,7 @@ struct token {
     int line;
 };
 
-typedef struct {
+struct lexer {
     int indent_style; // space or tab
     int spaces_per_level; // indents are relative; the first one
     int col;
@@ -62,7 +36,8 @@ typedef struct {
     int indent_sp; // stack pointer for indent stack
     bool multiline_str; // """ starts a multiline string, just line in python. needs to be preserved across lines
     vector *tokens;
-} lexer;
+    intern_table *interns;
+};
 
 static lexer *init_lexer() {
     lexer *l = malloc(sizeof(lexer));
@@ -74,6 +49,7 @@ static lexer *init_lexer() {
     l->current_indent = 0;
     l->indent_sp = 1;
     l->multiline_str = FALSE;
+    l->interns = create_intern_table(128, 0.7);
     return l;
 }
 
@@ -230,17 +206,36 @@ static const char *token_type_str(token_type t) {
         return "EQ";
     case COMP_EQ:
         return "COMP_EQ";
+    case ADD_EQ:
+        return "ADD_EQ";
+    case SUB_EQ:
+        return "SUB_EQ";
+    case MUL_EQ:
+        return "MUL_EQ";
+    case DIV_EQ:
+        return "DIV_EQ";
+    case INTDIV_EQ:
+        return "INDIV_EQ";
+    case GT:
+        return "GT";
+    case LT:
+        return "LT";
+    case GTE:
+        return "GTE";
+    case LTE:
+        return "LTE";
 
     // literals
     case IDENTIFIER:
         return "IDENTIFIER";
     case STRING:
         return "STRING";
-    case NUMBER:
+    case INTEGER:
         return "NUMBER";
     case FLOAT:
         return "FLOAT";
-
+    case MULTILINE_STR:
+        return "MULTILINE_STR";
     // single characters
     case COMMA:
         return "COMMA";
@@ -275,7 +270,27 @@ void print_token(const token *token) {
     printf("type=%s, ident=%s, col=%u, line=%u\n", token_type_str(token->type), token->ident, token->col, token->line);
 }
 
-vector *lex(const char *filename) {
+// lexer support functions
+
+static void parse_number() {
+
+}
+
+static void parse_string() {
+
+}
+
+// n-character lookahead
+static char peek(lexer *l, char *buffer, int count, size_t buffer_size) {
+    if (l->col + count < buffer_size)
+        return buffer[l->col+count];
+    return '\0';
+}
+
+//
+
+
+lexer_result *lex(const char *filename) {
     FileStreamer *streamer = create_streamer(filename);
     lexer *lexer = init_lexer();
 
@@ -297,6 +312,54 @@ vector *lex(const char *filename) {
                 lexer->col++;
                 continue;
             }
+
+            // check single character tokens
+            switch (c) {
+            case '+':
+                if (PEEK(1) == '+')
+                    printf("%s\n", "++ found");
+                if (PEEK(1) == '=')
+                    printf("%s\n", "+= found");
+                break;
+            case '-':
+                break;
+            case '*':
+                break;
+            case '/':
+                break;
+            case '"':
+                break;
+            case '!':
+                break;
+            case '%':
+                break;
+            case '&':
+                break;
+            case '|':
+                break;
+            case '=':
+                break;
+            case '(':
+                break;
+            case ')':
+                break;
+            case '[':
+                break;
+            case ']':
+                break;
+            case ',':
+                break;
+            default:
+                break;
+            }
+
+            // numbers
+
+
+
+            // string identifiers
+            // start with _ or alphanumeric
+
 
             // TODO: write the actual parser
             lexer->col++;
@@ -323,5 +386,9 @@ vector *lex(const char *filename) {
     // }
 
     destroy_streamer(streamer);
-    return lexer->tokens;
+
+    return &(lexer_result) {
+        .interns=lexer->interns,
+        .tokens=lexer->tokens
+    };
 }

@@ -1,7 +1,40 @@
 #pragma once
 #include "vector.h"
+#include "intern.h"
 
 typedef struct token token;
+typedef struct lexer lexer;
+
+// all the token types
+typedef enum {
+    // keywords
+    FN, FOR, WHILE, IF, ELSE, ELSE_IF,
+    IS, RETURN, BY, FROM, IMPORT, TO,
+    PRINT, MATCH, // since print doesn't require parenthesis
+
+    // operators
+    NOT, AND, OR, FALSE, TRUE, MODULU,
+    MUL, DIV, INT_DIV, ADD, SUB, ADD_ONE, SUB_ONE, // ++, --
+    EQ, COMP_EQ, ADD_EQ, SUB_EQ, MUL_EQ, DIV_EQ, INTDIV_EQ, // ==
+    GT, LT, GTE, LTE,
+
+    // literals
+    IDENTIFIER, STRING, INTEGER, FLOAT, MULTILINE_STR,
+
+    // single characters
+    COMMA, LPAREN, RPAREN, LSQPAREN, RSQPAREN,
+
+    // scope
+    INDENT, DEDENT, NEWLINE,
+
+    // misc.
+    END
+} token_type;
+
+typedef struct {
+    vector *tokens;
+    intern_table *interns;
+} lexer_result;
 
 /**
  * @brief Prints a token for debugging purposes.
@@ -16,4 +49,4 @@ void print_token(const token *token);
  * @param filename Pointer to the filename to lex.
  * @return vector* Vector of tokens.
  */
-vector *lex(const char *filename);
+lexer_result *lex(const char *filename);
