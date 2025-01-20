@@ -2,6 +2,8 @@
 #include <stdio.h>
 #include <string.h>
 
+
+
 vector *create_vector(size_t elem_size, int initial_size) {
     vector *arr = malloc(sizeof(vector));
     arr->data = malloc(elem_size * initial_size);
@@ -12,7 +14,7 @@ vector *create_vector(size_t elem_size, int initial_size) {
     return arr;
 }
 
-void resize_array(vector *arr) {
+static void resize_array(vector *arr) {
     arr->capacity *= 2;
     arr->data = realloc(arr->data, arr->capacity * arr->elem_size);
     if (!arr->data) {

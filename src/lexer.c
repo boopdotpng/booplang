@@ -4,6 +4,65 @@
 #include <ctype.h>
 #include <string.h>
 #include "vector.h"
+#include "intern.h"
+
+// a file can be indented using spaces or tabs, but it must be consistent
+// spaces are just set using a number (2 for two spaces, etc)
+#define TABS 1
+#define SPACES 2
+#define UNSET 0
+
+// max number of nested indents
+#define MAX_INDENT_LEVEL 32
+#define IDENTIFIER_SIZE 128
+
+#define MAX_IDENTIFIERS 1024
+#define MAX_IDENTIFIER_LEN 128
+
+// all the token types
+typedef enum {
+    // keywords
+    FN, FOR, WHILE, IF, ELSE, ELSE_IF,
+    IS, RETURN, BY, FROM, IMPORT, TO,
+    PRINT, MATCH, // since print doesn't require parenthesis
+
+    // operators
+    NOT, AND, OR, FALSE, TRUE, MODULU,
+    MUL, DIV, INT_DIV, ADD, SUB, ADD_ONE, SUB_ONE, // ++, --
+    EQ, COMP_EQ, // ==
+
+    // literals
+    IDENTIFIER, STRING, NUMBER, FLOAT,
+
+    // single characters
+    COMMA, LPAREN, RPAREN, LSQPAREN, RSQPAREN,
+
+    // scope
+    INDENT, DEDENT, NEWLINE,
+
+    // misc.
+    END
+} token_type;
+
+// represents an actual token
+struct token {
+    token_type type;
+    char *ident; // if its not a token, its probably a variable name or function name
+    int col;
+    int line;
+};
+
+typedef struct {
+    int indent_style; // space or tab
+    int spaces_per_level; // indents are relative; the first one
+    int col;
+    int line;
+    int current_indent; // current indent level
+    int indent_stack[MAX_INDENT_LEVEL]; // track changes in indentation
+    int indent_sp; // stack pointer for indent stack
+    bool multiline_str; // """ starts a multiline string, just line in python. needs to be preserved across lines
+    vector *tokens;
+} lexer;
 
 static lexer *init_lexer() {
     lexer *l = malloc(sizeof(lexer));
@@ -31,7 +90,7 @@ static void parse_indent(lexer *lexer, char *buffer) {
     }
 
     // comment detection
-    if (buffer[lexer->col] == '#') {
+    if (buffer[lexer->col] == ';') {
         while (buffer[lexer->col] != '\n' && buffer[lexer->col] != '\0') {
             lexer->col++;
         }
@@ -110,70 +169,113 @@ static void parse_indent(lexer *lexer, char *buffer) {
 
 static const char *token_type_str(token_type t) {
     switch (t) {
-        // keywords
-        case FN: return "FN";
-        case FOR: return "FOR";
-        case WHILE: return "WHILE";
-        case IF: return "IF";
-        case ELSE: return "ELSE";
-        case ELSE_IF: return "ELSE_IF";
-        case IS: return "IS";
-        case RETURN: return "RETURN";
-        case BY: return "BY";
-        case FROM: return "FROM";
-        case IMPORT: return "IMPORT";
-        case TO: return "TO";
-        case PRINT: return "PRINT";
-        case MATCH: return "MATCH";
+    // keywords
+    case FN:
+        return "FN";
+    case FOR:
+        return "FOR";
+    case WHILE:
+        return "WHILE";
+    case IF:
+        return "IF";
+    case ELSE:
+        return "ELSE";
+    case ELSE_IF:
+        return "ELSE_IF";
+    case IS:
+        return "IS";
+    case RETURN:
+        return "RETURN";
+    case BY:
+        return "BY";
+    case FROM:
+        return "FROM";
+    case IMPORT:
+        return "IMPORT";
+    case TO:
+        return "TO";
+    case PRINT:
+        return "PRINT";
+    case MATCH:
+        return "MATCH";
 
-        // operators
-        case NOT: return "NOT";
-        case AND: return "AND";
-        case OR: return "OR";
-        case FALSE: return "FALSE";
-        case TRUE: return "TRUE";
-        case MODULU: return "MODULU";
-        case MUL: return "MUL";
-        case DIV: return "DIV";
-        case INT_DIV: return "INT_DIV";
-        case ADD: return "ADD";
-        case SUB: return "SUB";
-        case ADD_ONE: return "ADD_ONE";
-        case SUB_ONE: return "SUB_ONE";
-        case EQ: return "EQ";
-        case COMP_EQ: return "COMP_EQ";
+    // operators
+    case NOT:
+        return "NOT";
+    case AND:
+        return "AND";
+    case OR:
+        return "OR";
+    case FALSE:
+        return "FALSE";
+    case TRUE:
+        return "TRUE";
+    case MODULU:
+        return "MODULU";
+    case MUL:
+        return "MUL";
+    case DIV:
+        return "DIV";
+    case INT_DIV:
+        return "INT_DIV";
+    case ADD:
+        return "ADD";
+    case SUB:
+        return "SUB";
+    case ADD_ONE:
+        return "ADD_ONE";
+    case SUB_ONE:
+        return "SUB_ONE";
+    case EQ:
+        return "EQ";
+    case COMP_EQ:
+        return "COMP_EQ";
 
-        // literals
-        case IDENTIFIER: return "IDENTIFIER";
-        case STRING: return "STRING";
-        case NUMBER: return "NUMBER";
-        case FLOAT: return "FLOAT";
+    // literals
+    case IDENTIFIER:
+        return "IDENTIFIER";
+    case STRING:
+        return "STRING";
+    case NUMBER:
+        return "NUMBER";
+    case FLOAT:
+        return "FLOAT";
 
-        // single characters
-        case COMMA: return "COMMA";
-        case LPAREN: return "LPAREN";
-        case RPAREN: return "RPAREN";
-        case LSQPAREN: return "LSQPAREN";
-        case RSQPAREN: return "RSQPAREN";
+    // single characters
+    case COMMA:
+        return "COMMA";
+    case LPAREN:
+        return "LPAREN";
+    case RPAREN:
+        return "RPAREN";
+    case LSQPAREN:
+        return "LSQPAREN";
+    case RSQPAREN:
+        return "RSQPAREN";
 
-        // scope
-        case INDENT: return "INDENT";
-        case DEDENT: return "DEDENT";
-        case NEWLINE: return "NEWLINE";
+    // scope
+    case INDENT:
+        return "INDENT";
+    case DEDENT:
+        return "DEDENT";
+    case NEWLINE:
+        return "NEWLINE";
 
-        // misc.
-        case END: return "END";
+    // misc.
+    case END:
+        return "END";
 
-        // default case for unknown token types
-        default: return "UNKNOWN_TOKEN";
+    // default case for unknown token types
+    default:
+        return "UNKNOWN_TOKEN";
     }
 }
 
-void print_token(token *token) {
+void print_token(const token *token) {
     printf("type=%s, ident=%s, col=%u, line=%u\n", token_type_str(token->type), token->ident, token->col, token->line);
 }
 
-lexer *lex(const char *filename) {
+vector *lex(const char *filename) {
     FileStreamer *streamer = create_streamer(filename);
     lexer *lexer = init_lexer();
 
@@ -187,8 +289,13 @@ lexer *lex(const char *filename) {
 
         while (lexer->col < bytes_read) {
             char c = buffer[lexer->col];
-            if (c == '#') {
+            if (c == ';') // comment character
                 break;
+
+            // skip whitespace
+            if (isspace(c)) {
+                lexer->col++;
+                continue;
             }
 
             // TODO: write the actual parser
@@ -216,5 +323,5 @@ lexer *lex(const char *filename) {
     // }
 
     destroy_streamer(streamer);
-    return lexer;
+    return lexer->tokens;
 }
