@@ -3,40 +3,39 @@
 
 typedef struct trie_node trie_node;
 
-// struct to keep track of the longest possible match
 typedef struct {
     token_type type;
     int length;
 } match_result;
 
 /**
- * @brief Create a trie node object
+ * @brief Allocates and initializes a new trie node.
  *
- * @return trie_node*
+ * @return Pointer to the created node, or NULL on failure.
  */
 trie_node *create_trie_node();
 
 /**
- * @brief
+ * @brief Inserts a symbol and its token type into the trie.
  *
- * @param root
- * @param symbol
- * @param type
+ * @param root Trie root node.
+ * @param symbol Null-terminated string to insert.
+ * @param type Token type to associate with the symbol.
  */
 void insert_symbol(trie_node *root, const char *symbol, token_type type);
 
 /**
- * @brief
+ * @brief Searches for the longest matching symbol in the trie.
  *
- * @param root
- * @param sym
- * @return token_type
+ * @param root Trie root node.
+ * @param sym Input string to search.
+ * @return Longest match (token type and length). If no match, returns `{-1, 0}`.
  */
 match_result search_trie(trie_node *root, const char *sym);
 
 /**
- * @brief
+ * @brief Frees all nodes in the trie.
  *
- * @param root
+ * @param root Trie root node.
  */
 void free_trie(trie_node *root);
