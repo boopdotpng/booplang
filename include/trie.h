@@ -1,5 +1,5 @@
 #pragma once
-#include "lexer.h"
+#include "token.h"
 
 typedef struct trie_node trie_node;
 

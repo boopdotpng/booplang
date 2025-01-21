@@ -15,38 +15,82 @@
 
 // max number of nested indents
 #define MAX_INDENT_LEVEL 32
-// max variable size (might not enforce: TODO)
-#define IDENTIFIER_SIZE 128
-
-#define PEEK(count) peek((lexer), (buffer), (count), (bytes_read))
-
-#define ADD_TOKEN(token_type, ident_value) \
-    add_element(lexer->tokens, &(token) { \
-        .type = (token_type), \
-        .ident = intern_string(lexer->interns, (ident_value), token_type), \
-        .col = lexer->col, \
-        .line = lexer->line \
-    })
+// max length for strings
+#define MAX_STRING_LEN 256
 
 // represents an actual token
 struct token {
     token_type type;
-    char *ident; // if its not a token, its probably a variable name or function name
+    char *ident; // if not a keyword/operator, probably a variable or function name
     int col;
     int line;
 };
 
+typedef struct {
+    const char *symbol;
+    token_type type;
+} symbol_entry;
+
 struct lexer {
-    int indent_style; // space or tab
-    int spaces_per_level; // indents are relative; the first one
-    int col;
+    int indent_style;       // space or tab
+    int spaces_per_level;   // for space-based indentation
     int line;
-    int current_indent; // current indent level
-    int indent_stack[MAX_INDENT_LEVEL]; // track changes in indentation
-    int indent_sp; // stack pointer for indent stack
+    int col;
+    int current_indent;     // current indent level
+    int indent_stack[MAX_INDENT_LEVEL];
+    int indent_sp;          // stack pointer for indent_stack
     vector *tokens;
-    intern_table *interns;
+    intern_table *interns; // string intern table
 };
+
+// tokens that don't require an identifier
+void add_token_null(lexer *lexer, token_type type) {
+    token new_token = {
+        .type = type,
+        .ident = NULL,
+        .col = lexer->col,
+        .line = lexer->line
+    };
+
+    add_element(lexer->tokens, &new_token);
+}
+
+// add tokens with an identifier
+void add_token_len(lexer *lexer, token_type type, const char *ptr, size_t length) {
+    intern_result result = intern_string(lexer->interns, ptr, length, type);
+
+    token new_token = {
+        .type = result.value,  // token_type
+        .ident = result.key,   // the interned string
+        .col = lexer->col,
+        .line = lexer->line
+    };
+
+    add_element(lexer->tokens, &new_token);
+}
+
+// add all language keywords to the intern table
+static void add_language_keywords(intern_table *interns) {
+    // list of reserved language keywords
+    const char *keywords[] = {
+        "fn", "for", "while", "if", "else", "else_if",
+        "is", "return", "by", "from", "import", "to",
+        "print", "match", "false", "true"
+    };
+
+    // corresponding token types
+    const token_type types[] = {
+        FN, FOR, WHILE, IF, ELSE, ELSE_IF,
+        IS, RETURN, BY, FROM, IMPORT, TO,
+        PRINT, MATCH, FALSE, TRUE
+    };
+
+    size_t keyword_count = sizeof(keywords) / sizeof(keywords[0]);
+
+    for (size_t i = 0; i < keyword_count; i++) {
+        intern_string(interns, keywords[i], strlen(keywords[i]), types[i]);
+    }
+}
 
 static lexer *init_lexer() {
     lexer *l = malloc(sizeof(lexer));
@@ -58,21 +102,17 @@ static lexer *init_lexer() {
     l->current_indent = 0;
     l->indent_sp = 1;
     l->interns = create_intern_table(128, 0.7);
+
+    add_language_keywords(l->interns);
     return l;
 }
-
-typedef struct {
-    const char *symbol;
-    token_type type;
-} symbol_entry;
 
 static void parse_indent(lexer *lexer, char *buffer) {
     int spaces = 0, tabs = 0;
     while (isspace(buffer[lexer->col])) {
         if (buffer[lexer->col] == ' ') {
             spaces++;
-        }
-        if (buffer[lexer->col] == '\t') {
+        } else if (buffer[lexer->col] == '\t') {
             tabs++;
         }
         lexer->col++;
@@ -80,19 +120,17 @@ static void parse_indent(lexer *lexer, char *buffer) {
 
     // comment detection
     if (buffer[lexer->col] == ';') {
-        while (buffer[lexer->col] != '\n' && buffer[lexer->col] != '\0') {
+        while (buffer[lexer->col] != '\n' && buffer[lexer->col] != '\0')
             lexer->col++;
-        }
         return;
     }
 
     // skip empty lines
-    if (buffer[lexer->col] == '\n' || buffer[lexer->col] == '\0') {
+    if (buffer[lexer->col] == '\n' || buffer[lexer->col] == '\0')
         return;
-    }
 
     // first indent?
-    if (lexer->indent_style == UNSET && ( (spaces > 0) != (tabs > 0) )) {
+    if (lexer->indent_style == UNSET && ((spaces > 0) != (tabs > 0))) {
         if (spaces > 0) {
             lexer->indent_style = SPACES;
             lexer->spaces_per_level = spaces;
@@ -103,14 +141,16 @@ static void parse_indent(lexer *lexer, char *buffer) {
 
     // check for mixed tab and space usage
     if (spaces > 0 && tabs > 0) {
-        fprintf(stderr, "Use of tabs and spaces at %d:%d, which is forbidden.\n", lexer->line, lexer->col);
+        fprintf(stderr, "use of tabs and spaces at %d:%d, which is forbidden.\n",
+                lexer->line, lexer->col);
         exit(1);
     }
 
-    // make sure user indents by the same amount each time
+    // ensure consistent spacing
     if (lexer->indent_style == SPACES) {
         if (spaces % lexer->spaces_per_level != 0) {
-            fprintf(stderr, "Inconsistent space indentation near %d:%d. Expected a multiple of %d.\n", lexer->line, lexer->col, lexer->spaces_per_level);
+            fprintf(stderr, "inconsistent space indentation near %d:%d. expected multiple of %d.\n",
+                    lexer->line, lexer->col, lexer->spaces_per_level);
             exit(1);
         }
         lexer->current_indent = spaces / lexer->spaces_per_level;
@@ -118,39 +158,30 @@ static void parse_indent(lexer *lexer, char *buffer) {
         lexer->current_indent = tabs;
     }
 
-    // handle an indent
-    if (lexer->current_indent > lexer->indent_stack[lexer->indent_sp-1]) {
-        if (lexer->current_indent != lexer->indent_stack[lexer->indent_sp-1] + 1) {
-            fprintf(stderr, "Invalid indentation increase at line %d\n", lexer->line);
+    // handle indent
+    if (lexer->current_indent > lexer->indent_stack[lexer->indent_sp - 1]) {
+        if (lexer->current_indent != lexer->indent_stack[lexer->indent_sp - 1] + 1) {
+            fprintf(stderr, "invalid indentation increase at line %d\n", lexer->line);
             exit(1);
         }
-
-        if(lexer->indent_sp >= MAX_INDENT_LEVEL) {
-            fprintf(stderr, "Maximum indentation depth exceeded at line %d\n", lexer->line);
+        if (lexer->indent_sp >= MAX_INDENT_LEVEL) {
+            fprintf(stderr, "max indentation depth exceeded at line %d\n", lexer->line);
             exit(1);
         }
         lexer->indent_stack[lexer->indent_sp] = lexer->current_indent;
         lexer->indent_sp++;
 
-        add_element(lexer->tokens, &(token) {
-            .type = INDENT, .ident = NULL, .col = lexer->col, .line = lexer->line
-        });
-    }
-
-    // handle an dedent
-    else {
-        // pop indents off stack until we get to the current level
-        while (lexer->indent_sp > 1 && lexer->indent_stack[lexer->indent_sp - 1] > lexer->current_indent) {
+        add_token_null(lexer, INDENT);
+    } else {
+        // handle dedent
+        while (lexer->indent_sp > 1 &&
+                lexer->indent_stack[lexer->indent_sp - 1] > lexer->current_indent) {
             lexer->indent_sp--;
-
-            add_element(lexer->tokens, &(token) {
-                .type = DEDENT, .ident = NULL, .col = lexer->col, .line = lexer->line
-            });
+            add_token_null(lexer, DEDENT);
         }
 
-        if (lexer->indent_stack[lexer->indent_sp- 1] != lexer->current_indent) {
-            fprintf(stderr, "Error: Invalid dedentation level at line %d\n",
-                    lexer->line);
+        if (lexer->indent_stack[lexer->indent_sp - 1] != lexer->current_indent) {
+            fprintf(stderr, "error: invalid dedent level at line %d\n", lexer->line);
             exit(1);
         }
     }
@@ -160,157 +191,143 @@ static const char *token_type_str(token_type t) {
     switch (t) {
     // keywords
     case FN:
-        return "FN";
+        return "fn";
     case FOR:
-        return "FOR";
+        return "for";
     case WHILE:
-        return "WHILE";
+        return "while";
     case IF:
-        return "IF";
+        return "if";
     case ELSE:
-        return "ELSE";
+        return "else";
     case ELSE_IF:
-        return "ELSE_IF";
+        return "else_if";
     case IS:
-        return "IS";
+        return "is";
     case RETURN:
-        return "RETURN";
+        return "return";
     case BY:
-        return "BY";
+        return "by";
     case FROM:
-        return "FROM";
+        return "from";
     case IMPORT:
-        return "IMPORT";
+        return "import";
     case TO:
-        return "TO";
+        return "to";
     case PRINT:
-        return "PRINT";
+        return "print";
     case MATCH:
-        return "MATCH";
-
-    // operators
+        return "match";
     case NOT:
-        return "NOT";
+        return "not";
     case AND:
-        return "AND";
+        return "and";
     case OR:
-        return "OR";
+        return "or";
     case FALSE:
-        return "FALSE";
+        return "false";
     case TRUE:
-        return "TRUE";
+        return "true";
     case MODULU:
-        return "MODULU";
+        return "modulu";
     case MUL:
-        return "MUL";
+        return "mul";
     case DIV:
-        return "DIV";
+        return "div";
     case INT_DIV:
-        return "INT_DIV";
+        return "int_div";
     case ADD:
-        return "ADD";
+        return "add";
     case SUB:
-        return "SUB";
+        return "sub";
     case ADD_ONE:
-        return "ADD_ONE";
+        return "add_one";
     case SUB_ONE:
-        return "SUB_ONE";
+        return "sub_one";
     case EQ:
-        return "EQ";
+        return "eq";
     case COMP_EQ:
-        return "COMP_EQ";
+        return "comp_eq";
     case ADD_EQ:
-        return "ADD_EQ";
+        return "add_eq";
     case SUB_EQ:
-        return "SUB_EQ";
+        return "sub_eq";
     case MUL_EQ:
-        return "MUL_EQ";
+        return "mul_eq";
     case DIV_EQ:
-        return "DIV_EQ";
+        return "div_eq";
     case INTDIV_EQ:
-        return "INDIV_EQ";
+        return "indiv_eq";
     case GT:
-        return "GT";
+        return "gt";
     case LT:
-        return "LT";
+        return "lt";
     case GTE:
-        return "GTE";
+        return "gte";
     case LTE:
-        return "LTE";
+        return "lte";
     case CARROT:
-        return "CARROT";
+        return "carrot";
     case CARROT_EQ:
-        return "CARROT_EQ";
-
-    // literals
+        return "carrot_eq";
     case IDENTIFIER:
-        return "IDENTIFIER";
+        return "identifier";
     case STRING:
-        return "STRING";
+        return "string";
     case INTEGER:
-        return "NUMBER";
+        return "number";
     case FLOAT:
-        return "FLOAT";
-
-    // single characters
+        return "float";
     case COMMA:
-        return "COMMA";
+        return "comma";
     case LPAREN:
-        return "LPAREN";
+        return "lparen";
     case RPAREN:
-        return "RPAREN";
+        return "rparen";
     case LSQPAREN:
-        return "LSQPAREN";
+        return "lsqparen";
     case RSQPAREN:
-        return "RSQPAREN";
-
-    // scope
+        return "rsqparen";
     case INDENT:
-        return "INDENT";
+        return "indent";
     case DEDENT:
-        return "DEDENT";
+        return "dedent";
     case NEWLINE:
-        return "NEWLINE";
-
-    // misc.
+        return "newline";
     case END:
-        return "END";
-
-    // default case for unknown token types
+        return "end";
     default:
-        return "UNKNOWN_TOKEN";
+        return "unknown_token";
     }
 }
 
 void print_token(const token *token) {
-    printf("type=%s, ident=%s, col=%u, line=%u\n", token_type_str(token->type), token->ident, token->col, token->line);
+    printf("type=%s, ident=%s, line=%d, col=%d\n",
+           token_type_str(token->type),
+           token->ident ? token->ident : "(null)",
+           token->line,
+           token->col);
 }
 
-// n-character lookahead
-static char peek(lexer *l, char *buffer, int count, size_t buffer_size) {
-    if (l->col + count < buffer_size)
-        return buffer[l->col+count];
-    return '\0';
-}
-
-// trie intialization
+// trie initialization
 static trie_node *intialize_trie() {
     const symbol_entry symbols[] = {
-        {"+", ADD}, {"++", ADD_ONE}, {"+=", ADD_EQ},
-        {"-", SUB}, {"--", SUB_ONE}, {"-=", SUB_EQ},
-        {"*", MUL}, {"*=", MUL_EQ},
-        {"/", DIV}, {"/=", DIV_EQ}, {"//", INT_DIV}, {"//=", INTDIV_EQ}, {"^", CARROT}, {"^=", CARROT_EQ},
+        {"+", ADD},   {"++", ADD_ONE},    {"+=", ADD_EQ},
+        {"-", SUB},   {"--", SUB_ONE},    {"-=", SUB_EQ},
+        {"*", MUL},   {"*=", MUL_EQ},
+        {"/", DIV},   {"/=", DIV_EQ},     {"//", INT_DIV},   {"//=", INTDIV_EQ},
+        {"^", CARROT},{"^=", CARROT_EQ},
         {"%", MODULU},
-        {">", GT}, {">=", GTE}, {"<", LT}, {"<=", LTE},
+        {">", GT},    {">=", GTE},       {"<", LT},        {"<=", LTE},
         {"==", COMP_EQ}, {"=", EQ},
-        {"&&", AND}, {"||", OR}, {"!", NOT},
-        {"(", LPAREN}, {")", RPAREN},
-        {"[", LSQPAREN}, {"]", RSQPAREN},
+        {"&&", AND},  {"||", OR},        {"!", NOT},
+        {"(", LPAREN},{")", RPAREN},
+        {"[", LSQPAREN},{"]", RSQPAREN},
         {",", COMMA}
     };
 
     trie_node *node = create_trie_node();
-    for (int i = 0; i < sizeof(symbols)/sizeof(symbol_entry); i++)
+    for (int i = 0; i < (int)(sizeof(symbols) / sizeof(symbol_entry)); i++)
         insert_symbol(node, symbols[i].symbol, symbols[i].type);
 
     return node;
@@ -321,7 +338,7 @@ static bool issymbol(char c) {
            c == '=' || c == '!' || c == '<' || c == '>' ||
            c == '&' || c == '|' || c == '^' ||
            c == '(' || c == ')' || c == '[' || c == ']' ||
-           c == ',' ;
+           c == ',';
 }
 
 static char handle_escape_sequence(char c) {
@@ -335,105 +352,127 @@ static char handle_escape_sequence(char c) {
     case '\'':
         return '\'';
     default:
-        fprintf(stderr, "unknown escape sequence");
+        fprintf(stderr, "unknown escape sequence '\\%c'\n", c);
         return '\0';
     }
 }
 
-// parse user strings ""
-// these will not be interned
 static void parse_string(lexer *lexer, char *buffer, size_t bytes_read) {
+    // skip initial "
     lexer->col++;
 
-    char string_buffer[256]; // tweet sized
+    // TODO: dynamically allocate this or print a useful error
+    // when the buffer overflows
+    char string_buffer[MAX_STRING_LEN];
     int sb_index = 0;
 
-    while(lexer->col < bytes_read) {
+    while (lexer->col < (int)bytes_read) {
         char c = buffer[lexer->col];
         if (c == '\\') {
+            // escape
             lexer->col++;
-            if (lexer->col >= bytes_read) {
-                fprintf(stderr, "Unterminated string at line %d\n", lexer->line);
+            if (lexer->col >= (int)bytes_read) {
+                fprintf(stderr, "unterminated string at line %d\n", lexer->line);
+                exit(1);
             }
             char escaped_char = handle_escape_sequence(buffer[lexer->col]);
-            if (sb_index < 256 - 1) {
+            if (sb_index < MAX_STRING_LEN - 1)
                 string_buffer[sb_index++] = escaped_char;
-            } else {
-                fprintf(stderr, "string too long");
+            else {
+                fprintf(stderr, "string too long\n");
                 exit(1);
             }
         } else if (c == '"') {
+            // end of string
             lexer->col++;
             break;
         } else {
-            if (sb_index < 256 - 1) {
+            // normal char
+            if (sb_index < MAX_STRING_LEN - 1)
                 string_buffer[sb_index++] = c;
-            } else {
-                fprintf(stderr, "string too long");
+            else {
+                fprintf(stderr, "string too long\n");
                 exit(1);
             }
         }
         lexer->col++;
 
-        if (lexer->col >= bytes_read && buffer[lexer->col - 1] != '"') {
-            fprintf(stderr, "Unterminated string at line %d\n", lexer->line);
+        if (lexer->col >= (int)bytes_read && buffer[lexer->col - 1] != '"') {
+            fprintf(stderr, "unterminated string at line %d\n", lexer->line);
             exit(1);
         }
-
-        string_buffer[sb_index] = '\0';
-
-        const char *interned_string = intern_string(lexer->interns, string_buffer, STRING);
-
-        ADD_TOKEN(STRING, interned_string);
     }
+
+    string_buffer[sb_index] = '\0';
+    // add token with full string
+    add_token_len(lexer, STRING, string_buffer, sb_index);
 }
 
-// parse integers and floats
-static void parse_number(lexer *lexer, char *buffer) {
+static void parse_number(lexer *lexer, char *buffer, size_t bytes_read) {
     int start = lexer->col;
     bool is_float = false;
-    while (buffer[lexer->col] != '\n' && ( isdigit(buffer[lexer->col]) || buffer[lexer->col] == '.')) {
+
+    while (lexer->col < (int)bytes_read &&
+            buffer[lexer->col] != '\n' &&
+            (isdigit(buffer[lexer->col]) || buffer[lexer->col] == '.')) {
         if (buffer[lexer->col] == '.') {
-            if (is_float)
-                fprintf(stderr, "Malformed number at line %d:%d", lexer->line, lexer->col);
+            if (is_float) {
+                fprintf(stderr, "malformed number at line %d:%d\n", lexer->line, lexer->col);
+                exit(1);
+            }
             is_float = true;
         }
         lexer->col++;
     }
 
-    const char *ident = substring(buffer, start, lexer->col);
-    // TODO: don't intern very large numbers or selectively check
-    ADD_TOKEN(is_float ? FLOAT : INTEGER, intern_string(lexer->interns, ident, IDENTIFIER));
+    int length = lexer->col - start;
 
+    add_token_len(lexer, is_float ? FLOAT : INTEGER, buffer + start, length);
 }
 
 // ++, --, etc
-static void parse_symbol(lexer *lexer, trie_node *root, char *buffer) {
+static void parse_symbol(lexer *lexer, trie_node *root, char *buffer, size_t bytes_read) {
     int start = lexer->col;
-    while (issymbol(buffer[lexer->col]))
+    while (lexer->col < (int)bytes_read && issymbol(buffer[lexer->col])) {
         lexer->col++;
+    }
 
-    const char *sym = substring(buffer, start, lexer->col);
-    match_result res = search_trie(root, sym);
-    // symbol was not found in trie
-    if (res.length == 0 && res.type == -1)
-        fprintf(stderr, "invalid symbol %s at line %d col %d", sym, lexer->line, lexer->col);
-    else {
-        ADD_TOKEN(res.type, NULL);
+    int length = lexer->col - start;
+    char tmp[8];
+    if (length >= 8) {
+        fprintf(stderr, "symbol too long at line %d col %d\n", lexer->line, lexer->col);
+        exit(1);
+    }
+    memcpy(tmp, buffer + start, length);
+    tmp[length] = '\0';
+
+    match_result res = search_trie(root, tmp);
+    if (res.length == 0 && res.type == -1) {
+        fprintf(stderr, "invalid symbol '%s' at line %d col %d\n", tmp, lexer->line, lexer->col);
+        exit(1);
+    } else {
+        add_token_null(lexer, res.type);
     }
 }
 
-// variable names, functions, etc
-// print function is treated as a reserved keyword
-// these are interned
-static void parse_identifier(lexer *lexer, char *buffer) {
+// variable names, function names, and reserved language keywords
+static void parse_identifier(lexer *lexer, char *buffer, size_t bytes_read) {
     int start = lexer->col;
-    while (isalpha(buffer[lexer->col]) || isdigit(buffer[lexer->col]) || buffer[lexer->col] == '_')
+    while (lexer->col < (int)bytes_read &&
+            (isalpha(buffer[lexer->col]) || isdigit(buffer[lexer->col]) || buffer[lexer->col] == '_')) {
         lexer->col++;
-    // TODO: implement substring
-    const char *ident = substring(buffer, start, lexer->col);
+    }
+    int length = lexer->col - start;
 
-    ADD_TOKEN(IDENTIFIER, ident);
+    // search intern table to check if ident is reserved
+    // the value is only updated if the key does not exist. anything that doesn't exist in the table has to be a user created ident
+    intern_result res = intern_string(lexer->interns, buffer+start, length, IDENTIFIER);
+
+    if (res.value == IDENTIFIER) {
+        add_token_len(lexer, res.value, buffer+start, length);
+    } else {
+        add_token_null(lexer, res.value);
+    }
 }
 
 lexer_result *lex(const char *filename) {
@@ -445,52 +484,40 @@ lexer_result *lex(const char *filename) {
     size_t bytes_read;
 
     while ((bytes_read = stream_line(streamer, buffer)) > 0) {
-        lexer->col=0;
-        // actual line parsing
+        lexer->col = 0;
+        // handle indentation per line
         parse_indent(lexer, buffer);
 
-        while (lexer->col < bytes_read) {
+        while (lexer->col < (int)bytes_read) {
             char c = buffer[lexer->col];
-            if (c == ';') // comment character
-                break; // skip to the next line
-            else if (isspace(c)) {
+            if (c == ';') {
+                // comment => skip rest of line
+                break;
+            } else if (isspace(c)) {
                 lexer->col++;
                 continue;
-            } else if(isalpha(c) || c == '_')
-                parse_identifier(lexer, buffer);
-
-            else if(isdigit(c))
-                parse_number(lexer, buffer);
-            else if(c == '"')
+            } else if (isalpha(c) || c == '_') {
+                parse_identifier(lexer, buffer, bytes_read);
+            } else if (isdigit(c)) {
+                parse_number(lexer, buffer, bytes_read);
+            } else if (c == '"') {
                 parse_string(lexer, buffer, bytes_read);
-            else if(issymbol(c))
-                parse_symbol(lexer, root, buffer);
+            } else if (issymbol(c)) {
+                parse_symbol(lexer, root, buffer, bytes_read);
+            } else {
+                lexer->col++;
+            }
         }
 
-        add_element(lexer->tokens, &(token) {
-            .type = NEWLINE, .ident = NULL, .col = lexer->col, .line = lexer->line
-        });
+        // end of line => add newline token
+        add_token_null(lexer, NEWLINE);
         lexer->line++;
     }
 
-    // TODO: not sure if this needed
-    // handle remaining dedents
-    // while (lexer->indent_sp > 1)
-    // {
-    //     lexer->indent_sp--;
-    //     Token dedent_token =
-    //     {
-    //         .type = DEDENT,
-    //         .line = lexer->line,
-    //         .col = lexer->col,
-    //     };
-    //     add_token(lexer, DEDENT, NULL, lexer->col, lexer->line);
-    // }
-
     destroy_streamer(streamer);
 
-    return &(lexer_result) {
-        .interns=lexer->interns,
-        .tokens=lexer->tokens
-    };
+    static lexer_result lr;
+    lr.interns = lexer->interns;
+    lr.tokens = lexer->tokens;
+    return &lr;
 }

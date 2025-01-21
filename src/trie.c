@@ -2,13 +2,13 @@
 #include <stdlib.h>
 #include <string.h>
 #include "trie.h"
-#include "lexer.h"
+#include "token.h"
 
-// +, -, *, /, |, =, &, >, <, %, !, "
-#define SYMBOL_COUNT 12
+// +, -, *, /, |, =, &, >, <, %, !, ^, (, ), [, ], , "
+#define SYMBOL_COUNT 18
 
 // used to determine the index of each char
-static const char SYMBOL_LIST[SYMBOL_COUNT] = {'+', '-', '*', '/', '|', '=', '&', '>', '<', '%', '!', '"'};
+static const char SYMBOL_LIST[SYMBOL_COUNT] = {'+', '-', '*', '/', '|', '=', '&', '>', '<', '%', '!', '"', '^', '(', ')', '[', ']', ','};
 
 struct trie_node {
     struct trie_node *children[SYMBOL_COUNT];
@@ -39,7 +39,7 @@ void insert_symbol(trie_node *root, const char *sym, token_type type) {
     while (*sym) {
         int index = symbol_to_index(sym);
         if (index == -1) {
-            fprintf(stderr, "error: invalid character %c in pattern", *sym);
+            fprintf(stderr, "error: invalid character %c in pattern\n", *sym);
             return;
         }
         if (!cur->children[index]) {

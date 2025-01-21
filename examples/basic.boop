@@ -17,6 +17,9 @@ fn main() ; this is a comment
     ; you can write for/range loops
     for i from 1 to 6 by 0.5 ; "by" defaults to 1 or -1
         print i+1
+
+    ; a hello world
+    print "hello, world"
     
 ; as the language grows, more features will be added. 
 ; arrays, structs, list comprehension, pattern matching, and string interpolation

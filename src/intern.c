@@ -72,14 +72,18 @@ intern_table *create_intern_table(int capacity, double load_factor) {
     return tbl;
 }
 
-// returns a pointer to the interned string
-char *intern_string(intern_table *t, const char *str, token_type value) {
+intern_result intern_string(intern_table *t, const char *start, size_t len, token_type value) {
+    // create a null-terminated string from the given start and length
+    char temp[len + 1];
+    memcpy(temp, start, len);
+    temp[len] = '\0';
+
     // first check if it exists
-    int slot = find_slot(t, str, 0);
+    int slot = find_slot(t, temp, 0);
     if (slot != -1 && t->keys[slot] != EMPTY_SLOT && t->keys[slot] != TOMBSTONE) {
-        // optionally update the value
-        t->values[slot] = value;
-        return t->keys[slot];
+        return (intern_result) {
+            t->keys[slot], t->values[slot]
+        };
     }
 
     // not found; maybe we need to resize
@@ -90,10 +94,12 @@ char *intern_string(intern_table *t, const char *str, token_type value) {
     }
 
     // find an insertion slot after potential resize
-    slot = find_slot(t, str, 1);
+    slot = find_slot(t, temp, 1);
     if (slot == -1) {
         fprintf(stderr, "couldn't find a slot after resize, unexpected\n");
-        return NULL;
+        return (intern_result) {
+            NULL, 0
+        };
     }
 
     if (t->keys[slot] == EMPTY_SLOT) {
@@ -102,11 +108,13 @@ char *intern_string(intern_table *t, const char *str, token_type value) {
         t->tombstone_count--;
     }
 
-    // only one strdup here
-    char *dup = strdup(str);
+    // allocate memory and store the interned string
+    char *dup = strndup(temp, len); // safer version of strdup for substrings
     t->keys[slot] = dup;
     t->values[slot] = value;
-    return dup;
+    return (intern_result) {
+        dup, value
+    };
 }
 
 // destroys all interned strings
@@ -178,13 +186,4 @@ static void resize(intern_table *t) {
     }
     free(oldkeys);
     free(oldvalues);
-}
-
-token_type get_interned_value(intern_table *t, const char *str) {
-    int slot = find_slot(t, str, 0);
-    if (slot != -1 && t->keys[slot] != EMPTY_SLOT && t->keys[slot] != TOMBSTONE) {
-        return t->values[slot];
-    }
-    // not found
-    return -1;
 }
