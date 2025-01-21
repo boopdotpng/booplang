@@ -15,6 +15,7 @@
 
 // max number of nested indents
 #define MAX_INDENT_LEVEL 32
+// max variable size (might not enforce: TODO)
 #define IDENTIFIER_SIZE 128
 
 #define PEEK(count) peek((lexer), (buffer), (count), (bytes_read))
@@ -53,6 +54,11 @@ static lexer *init_lexer() {
     l->interns = create_intern_table(128, 0.7);
     return l;
 }
+
+typedef struct {
+    const char *symbol;
+    token_type type;
+} symbol_entry;
 
 static void parse_indent(lexer *lexer, char *buffer) {
     int spaces = 0, tabs = 0;
@@ -271,16 +277,6 @@ void print_token(const token *token) {
     printf("type=%s, ident=%s, col=%u, line=%u\n", token_type_str(token->type), token->ident, token->col, token->line);
 }
 
-// lexer support functions
-
-static void parse_number() {
-
-}
-
-static void parse_string() {
-
-}
-
 // n-character lookahead
 static char peek(lexer *l, char *buffer, int count, size_t buffer_size) {
     if (l->col + count < buffer_size)
@@ -290,44 +286,50 @@ static char peek(lexer *l, char *buffer, int count, size_t buffer_size) {
 
 // trie intialization
 static trie_node *intialize_trie() {
+    const symbol_entry symbols[] = {
+        {"+", ADD}, {"++", ADD_ONE}, {"+=", ADD_EQ},
+        {"-", SUB}, {"--", SUB_ONE}, {"-=", SUB_EQ},
+        {"*", MUL}, {"*=", MUL_EQ},
+        {"/", DIV}, {"/=", DIV_EQ}, {"//", INT_DIV}, {"//=", INTDIV_EQ},
+        {"%", MODULU},
+        {">", GT}, {">=", GTE}, {"<", LT}, {"<=", LTE},
+        {"==", COMP_EQ}, {"=", EQ},
+        {"&&", AND}, {"||", OR}, {"!", NOT},
+        {"(", LPAREN}, {")", RPAREN},
+        {"[", LSQPAREN}, {"]", RSQPAREN},
+        {",", COMMA} 
+    };
+
     trie_node *node = create_trie_node();
-
-    // arithmetic operators
-    insert_symbol(node, "+", ADD);
-    insert_symbol(node, "++", ADD_ONE);
-    insert_symbol(node, "+=", ADD_EQ);
-    insert_symbol(node, "-", SUB);
-    insert_symbol(node, "--", SUB_ONE);
-    insert_symbol(node, "-=", SUB_EQ);
-    insert_symbol(node, "*", MUL);
-    insert_symbol(node, "*=", MUL_EQ);
-    insert_symbol(node, "/", DIV);
-    insert_symbol(node, "/=", DIV_EQ);
-    insert_symbol(node, "//", INT_DIV);
-    insert_symbol(node, "//=", INTDIV_EQ);
-    insert_symbol(node, "%", MODULU);
-
-    // comparison operators
-    insert_symbol(node, ">", GT);
-    insert_symbol(node, ">=", GTE);
-    insert_symbol(node, "<", LT);
-    insert_symbol(node, "<=", LTE);
-    insert_symbol(node, "==", COMP_EQ);
-    insert_symbol(node, "=", EQ);
-
-    // logical operators
-    insert_symbol(node, "&&", AND);
-    insert_symbol(node, "||", OR);
-    insert_symbol(node, "!", NOT);
-
-    // miscellaneous symbols
-    insert_symbol(node, "(", LPAREN);
-    insert_symbol(node, ")", RPAREN);
-    insert_symbol(node, "[", LSQPAREN);
-    insert_symbol(node, "]", RSQPAREN);
-    insert_symbol(node, ",", COMMA);
+    for (int i = 0; i < sizeof(symbols)/sizeof(symbol_entry); i++)
+        insert_symbol(node, symbols[i].symbol, symbols[i].type);
 
     return node;
+}
+
+static bool issymbol(char c) {
+    return c == '%' || c == '+' || c == '-' || c == '*' || c == '/' || 
+           c == '=' || c == '!' || c == '<' || c == '>' || 
+           c == '&' || c == '|' || c == '^' || c == '~' || 
+           c == '(' || c == ')' || c == '[' || c == ']' || 
+           c == '{' || c == '}' || c == ',' || c == '.' || 
+           c == ';' || c == ':';
+}
+
+static void parse_string(lexer *lexer, char *buffer){
+
+}
+
+static void parse_number(lexer *lexer, char *buffer){
+
+}
+
+static void parse_symbol(lexer *lexer, char *buffer){
+
+}
+
+static parse_identifier(lexer *lexer, char *buffer){
+
 }
 
 lexer_result *lex(const char *filename) {
@@ -346,18 +348,23 @@ lexer_result *lex(const char *filename) {
         while (lexer->col < bytes_read) {
             char c = buffer[lexer->col];
             if (c == ';') // comment character
-                break;
+                break; // skip to the next line
+            else if (isspace(c)) {
+                lexer->col++;
+                continue; 
+            }
+            else if(isalpha(c) || c == '_') {
+                
+            }
+            else if(isdigit(c)) {
 
-            // numbers
+            }
+            else if(c == '"') {
 
+            }
+            else if(issymbol(c)) {
 
-
-            // string identifiers
-            // start with _ or alphanumeric
-
-
-            // TODO: write the actual parser
-            lexer->col++;
+            }
         }
 
         add_element(lexer->tokens, &(token) {
