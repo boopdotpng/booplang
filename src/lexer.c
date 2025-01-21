@@ -488,6 +488,12 @@ lexer_result *lex(const char *filename) {
         // handle indentation per line
         parse_indent(lexer, buffer);
 
+        // ignore empty lines after indentation
+        if (buffer[lexer->col] == '\n' || buffer[lexer->col] == '\0') {
+            lexer->line++;
+            continue;
+        }
+
         while (lexer->col < (int)bytes_read) {
             char c = buffer[lexer->col];
             if (c == ';') {
