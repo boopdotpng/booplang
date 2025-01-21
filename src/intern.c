@@ -6,13 +6,14 @@
 #define EMPTY_SLOT 0
 #define TOMBSTONE  ((char*)-1)
 
-typedef struct intern_table {
+struct intern_table {
     int capacity;
     double load_factor;
     int size;
-    int TOMBSTONE_count;
+    int tombstone_count;
     char **keys;
-} intern_table;
+    token_type *values;
+};
 
 // djb2
 static unsigned long hash1(const char *str) {
@@ -65,22 +66,25 @@ intern_table *create_intern_table(int capacity, double load_factor) {
     tbl->capacity = capacity;
     tbl->load_factor = load_factor;
     tbl->size = 0;
-    tbl->TOMBSTONE_count = 0;
+    tbl->tombstone_count = 0;
     tbl->keys = calloc(capacity, sizeof(char*));
+    tbl->values = calloc(capacity, sizeof(token_type));
     return tbl;
 }
 
 // returns a pointer to the interned string
-char *intern_string(intern_table *t, const char *str) {
+char *intern_string(intern_table *t, const char *str, token_type value) {
     // first check if it exists
     int slot = find_slot(t, str, 0);
     if (slot != -1 && t->keys[slot] != EMPTY_SLOT && t->keys[slot] != TOMBSTONE) {
+        // optionally update the value
+        t->values[slot] = value;
         return t->keys[slot];
     }
 
     // not found; maybe we need to resize
     double ratio = (double)t->size / t->capacity;
-    double tomb_ratio = (double)t->TOMBSTONE_count / t->capacity;
+    double tomb_ratio = (double)t->tombstone_count / t->capacity;
     if (ratio >= t->load_factor || tomb_ratio >= 0.4) {
         resize(t);
     }
@@ -95,12 +99,13 @@ char *intern_string(intern_table *t, const char *str) {
     if (t->keys[slot] == EMPTY_SLOT) {
         t->size++;
     } else if (t->keys[slot] == TOMBSTONE) {
-        t->TOMBSTONE_count--;
+        t->tombstone_count--;
     }
 
     // only one strdup here
     char *dup = strdup(str);
     t->keys[slot] = dup;
+    t->values[slot] = value;
     return dup;
 }
 
@@ -114,6 +119,7 @@ void destroy_intern_table(intern_table *t) {
         }
     }
     free(t->keys);
+    free(t->values);
     free(t);
 }
 
@@ -127,22 +133,26 @@ void remove_interned_string(intern_table *t, const char *str) {
     // free it, mark TOMBSTONE
     free(t->keys[slot]);
     t->keys[slot] = TOMBSTONE;
+    t->values[slot] = -1;
     t->size--;
-    t->TOMBSTONE_count++;
+    t->tombstone_count++;
 }
 
 static void resize(intern_table *t) {
     int oldcap = t->capacity;
     char **oldkeys = t->keys;
+    token_type *oldvalues = t->values;
 
     t->capacity *= 2;
     t->size = 0;
-    t->TOMBSTONE_count = 0;
+    t->tombstone_count = 0;
     t->keys = calloc(t->capacity, sizeof(char*));
+    t->values = calloc(t->capacity, sizeof(token_type));
 
-    if (!t->keys) {
+    if (!t->keys || !t->values) {
         // revert
         t->keys = oldkeys;
+        t->values = oldvalues;
         t->capacity = oldcap;
         fprintf(stderr, "failed to resize intern table\n");
         return;
@@ -153,7 +163,7 @@ static void resize(intern_table *t) {
         char *k = oldkeys[i];
         if (k && k != EMPTY_SLOT && k != TOMBSTONE) {
             // re-intern the old pointer; no new strdup
-            // bc the pointer is ours already
+            // bc the pointer is already ours
             int slot = find_slot(t, k, 1);
             if (slot == -1) {
                 fprintf(stderr, "map is full during resize reinsert?\n");
@@ -163,7 +173,18 @@ static void resize(intern_table *t) {
                 t->size++;
             }
             t->keys[slot] = k;
+            t->values[slot] = oldvalues[i];
         }
     }
     free(oldkeys);
+    free(oldvalues);
+}
+
+token_type get_interned_value(intern_table *t, const char *str) {
+    int slot = find_slot(t, str, 0);
+    if (slot != -1 && t->keys[slot] != EMPTY_SLOT && t->keys[slot] != TOMBSTONE) {
+        return t->values[slot];
+    }
+    // not found
+    return -1;
 }

@@ -4,6 +4,7 @@
 
 typedef struct token token;
 typedef struct lexer lexer;
+typedef struct intern_table intern_table;
 
 // all the token types
 typedef enum {
@@ -16,7 +17,7 @@ typedef enum {
     NOT, AND, OR, FALSE, TRUE, MODULU,
     MUL, DIV, INT_DIV, ADD, SUB, ADD_ONE, SUB_ONE, // ++, --
     EQ, COMP_EQ, ADD_EQ, SUB_EQ, MUL_EQ, DIV_EQ, INTDIV_EQ, // ==
-    GT, LT, GTE, LTE,
+    GT, LT, GTE, LTE, CARROT, CARROT_EQ,
 
     // literals
     IDENTIFIER, STRING, INTEGER, FLOAT, MULTILINE_STR,

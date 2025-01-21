@@ -1,6 +1,7 @@
 #pragma once
 
 #include <stddef.h>
+#include "lexer.h"
 
 typedef struct intern_table intern_table;
 
@@ -20,7 +21,7 @@ intern_table *create_intern_table(int capacity, double load_factor);
  * @param str The string to intern.
  * @return A pointer to the interned string (owned by the table).
  */
-char *intern_string(intern_table *t, const char *str);
+char *intern_string(intern_table *t, const char *str, token_type value);
 
 /**
  * Removes an interned string from the table (optional use).

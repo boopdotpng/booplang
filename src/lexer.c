@@ -1,10 +1,10 @@
+#include "intern.h"
 #include "lexer.h"
 #include "utils.h"
 #include <stdlib.h>
 #include <string.h>
 #include <ctype.h>
 #include "vector.h"
-#include "intern.h"
 #include "trie.h"
 
 // a file can be indented using spaces or tabs, but it must be consistent
@@ -19,6 +19,14 @@
 #define IDENTIFIER_SIZE 128
 
 #define PEEK(count) peek((lexer), (buffer), (count), (bytes_read))
+
+#define ADD_TOKEN(token_type, ident_value) \
+    add_element(lexer->tokens, &(token) { \
+        .type = (token_type), \
+        .ident = intern_string(lexer->interns, (ident_value), token_type), \
+        .col = lexer->col, \
+        .line = lexer->line \
+    })
 
 // represents an actual token
 struct token {
@@ -36,7 +44,6 @@ struct lexer {
     int current_indent; // current indent level
     int indent_stack[MAX_INDENT_LEVEL]; // track changes in indentation
     int indent_sp; // stack pointer for indent stack
-    bool multiline_str; // """ starts a multiline string, just line in python. needs to be preserved across lines
     vector *tokens;
     intern_table *interns;
 };
@@ -50,7 +57,6 @@ static lexer *init_lexer() {
     l->indent_stack[0] = 0;
     l->current_indent = 0;
     l->indent_sp = 1;
-    l->multiline_str = FALSE;
     l->interns = create_intern_table(128, 0.7);
     return l;
 }
@@ -231,6 +237,10 @@ static const char *token_type_str(token_type t) {
         return "GTE";
     case LTE:
         return "LTE";
+    case CARROT:
+        return "CARROT";
+    case CARROT_EQ:
+        return "CARROT_EQ";
 
     // literals
     case IDENTIFIER:
@@ -241,8 +251,7 @@ static const char *token_type_str(token_type t) {
         return "NUMBER";
     case FLOAT:
         return "FLOAT";
-    case MULTILINE_STR:
-        return "MULTILINE_STR";
+
     // single characters
     case COMMA:
         return "COMMA";
@@ -290,14 +299,14 @@ static trie_node *intialize_trie() {
         {"+", ADD}, {"++", ADD_ONE}, {"+=", ADD_EQ},
         {"-", SUB}, {"--", SUB_ONE}, {"-=", SUB_EQ},
         {"*", MUL}, {"*=", MUL_EQ},
-        {"/", DIV}, {"/=", DIV_EQ}, {"//", INT_DIV}, {"//=", INTDIV_EQ},
+        {"/", DIV}, {"/=", DIV_EQ}, {"//", INT_DIV}, {"//=", INTDIV_EQ}, {"^", CARROT}, {"^=", CARROT_EQ},
         {"%", MODULU},
         {">", GT}, {">=", GTE}, {"<", LT}, {"<=", LTE},
         {"==", COMP_EQ}, {"=", EQ},
         {"&&", AND}, {"||", OR}, {"!", NOT},
         {"(", LPAREN}, {")", RPAREN},
         {"[", LSQPAREN}, {"]", RSQPAREN},
-        {",", COMMA} 
+        {",", COMMA}
     };
 
     trie_node *node = create_trie_node();
@@ -308,28 +317,123 @@ static trie_node *intialize_trie() {
 }
 
 static bool issymbol(char c) {
-    return c == '%' || c == '+' || c == '-' || c == '*' || c == '/' || 
-           c == '=' || c == '!' || c == '<' || c == '>' || 
-           c == '&' || c == '|' || c == '^' || c == '~' || 
-           c == '(' || c == ')' || c == '[' || c == ']' || 
-           c == '{' || c == '}' || c == ',' || c == '.' || 
-           c == ';' || c == ':';
+    return c == '%' || c == '+' || c == '-' || c == '*' || c == '/' ||
+           c == '=' || c == '!' || c == '<' || c == '>' ||
+           c == '&' || c == '|' || c == '^' ||
+           c == '(' || c == ')' || c == '[' || c == ']' ||
+           c == ',' ;
 }
 
-static void parse_string(lexer *lexer, char *buffer){
+static char handle_escape_sequence(char c) {
+    switch (c) {
+    case 'n':
+        return '\n';
+    case 't':
+        return '\t';
+    case '\\':
+        return '"';
+    case '\'':
+        return '\'';
+    default:
+        fprintf(stderr, "unknown escape sequence");
+        return '\0';
+    }
+}
+
+// parse user strings ""
+// these will not be interned
+static void parse_string(lexer *lexer, char *buffer, size_t bytes_read) {
+    lexer->col++;
+
+    char string_buffer[256]; // tweet sized
+    int sb_index = 0;
+
+    while(lexer->col < bytes_read) {
+        char c = buffer[lexer->col];
+        if (c == '\\') {
+            lexer->col++;
+            if (lexer->col >= bytes_read) {
+                fprintf(stderr, "Unterminated string at line %d\n", lexer->line);
+            }
+            char escaped_char = handle_escape_sequence(buffer[lexer->col]);
+            if (sb_index < 256 - 1) {
+                string_buffer[sb_index++] = escaped_char;
+            } else {
+                fprintf(stderr, "string too long");
+                exit(1);
+            }
+        } else if (c == '"') {
+            lexer->col++;
+            break;
+        } else {
+            if (sb_index < 256 - 1) {
+                string_buffer[sb_index++] = c;
+            } else {
+                fprintf(stderr, "string too long");
+                exit(1);
+            }
+        }
+        lexer->col++;
+
+        if (lexer->col >= bytes_read && buffer[lexer->col - 1] != '"') {
+            fprintf(stderr, "Unterminated string at line %d\n", lexer->line);
+            exit(1);
+        }
+
+        string_buffer[sb_index] = '\0';
+
+        const char *interned_string = intern_string(lexer->interns, string_buffer, STRING);
+
+        ADD_TOKEN(STRING, interned_string);
+    }
+}
+
+// parse integers and floats
+static void parse_number(lexer *lexer, char *buffer) {
+    int start = lexer->col;
+    bool is_float = false;
+    while (buffer[lexer->col] != '\n' && ( isdigit(buffer[lexer->col]) || buffer[lexer->col] == '.')) {
+        if (buffer[lexer->col] == '.') {
+            if (is_float)
+                fprintf(stderr, "Malformed number at line %d:%d", lexer->line, lexer->col);
+            is_float = true;
+        }
+        lexer->col++;
+    }
+
+    const char *ident = substring(buffer, start, lexer->col);
+    // TODO: don't intern very large numbers or selectively check
+    ADD_TOKEN(is_float ? FLOAT : INTEGER, intern_string(lexer->interns, ident, IDENTIFIER));
 
 }
 
-static void parse_number(lexer *lexer, char *buffer){
+// ++, --, etc
+static void parse_symbol(lexer *lexer, trie_node *root, char *buffer) {
+    int start = lexer->col;
+    while (issymbol(buffer[lexer->col]))
+        lexer->col++;
 
+    const char *sym = substring(buffer, start, lexer->col);
+    match_result res = search_trie(root, sym);
+    // symbol was not found in trie
+    if (res.length == 0 && res.type == -1)
+        fprintf(stderr, "invalid symbol %s at line %d col %d", sym, lexer->line, lexer->col);
+    else {
+        ADD_TOKEN(res.type, NULL);
+    }
 }
 
-static void parse_symbol(lexer *lexer, char *buffer){
+// variable names, functions, etc
+// print function is treated as a reserved keyword
+// these are interned
+static void parse_identifier(lexer *lexer, char *buffer) {
+    int start = lexer->col;
+    while (isalpha(buffer[lexer->col]) || isdigit(buffer[lexer->col]) || buffer[lexer->col] == '_')
+        lexer->col++;
+    // TODO: implement substring
+    const char *ident = substring(buffer, start, lexer->col);
 
-}
-
-static parse_identifier(lexer *lexer, char *buffer){
-
+    ADD_TOKEN(IDENTIFIER, ident);
 }
 
 lexer_result *lex(const char *filename) {
@@ -351,20 +455,16 @@ lexer_result *lex(const char *filename) {
                 break; // skip to the next line
             else if (isspace(c)) {
                 lexer->col++;
-                continue; 
-            }
-            else if(isalpha(c) || c == '_') {
-                
-            }
-            else if(isdigit(c)) {
+                continue;
+            } else if(isalpha(c) || c == '_')
+                parse_identifier(lexer, buffer);
 
-            }
-            else if(c == '"') {
-
-            }
-            else if(issymbol(c)) {
-
-            }
+            else if(isdigit(c))
+                parse_number(lexer, buffer);
+            else if(c == '"')
+                parse_string(lexer, buffer, bytes_read);
+            else if(issymbol(c))
+                parse_symbol(lexer, root, buffer);
         }
 
         add_element(lexer->tokens, &(token) {
