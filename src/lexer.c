@@ -44,7 +44,7 @@ struct lexer {
 };
 
 // tokens that don't require an identifier
-void add_token_null(lexer *lexer, token_type type) {
+static void add_token_null(lexer *lexer, token_type type) {
     token new_token = {
         .type = type,
         .ident = NULL,
@@ -56,7 +56,7 @@ void add_token_null(lexer *lexer, token_type type) {
 }
 
 // add tokens with an identifier
-void add_token_len(lexer *lexer, token_type type, const char *ptr, size_t length) {
+static void add_token_len(lexer *lexer, token_type type, const char *ptr, size_t length) {
     intern_result result = intern_string(lexer->interns, ptr, length, type);
 
     token new_token = {
@@ -73,7 +73,7 @@ void add_token_len(lexer *lexer, token_type type, const char *ptr, size_t length
 static void add_language_keywords(intern_table *interns) {
     // list of reserved language keywords
     const char *keywords[] = {
-        "fn", "for", "while", "if", "else", "else_if",
+        "fn", "for", "while", "if", "else", "elif",
         "is", "return", "by", "from", "import", "to",
         "print", "match", "false", "true"
     };
@@ -187,7 +187,7 @@ static void parse_indent(lexer *lexer, char *buffer) {
     }
 }
 
-static const char *token_type_str(token_type t) {
+const char *token_type_str(token_type t) {
     switch (t) {
     // keywords
     case FN:
@@ -521,6 +521,7 @@ lexer_result *lex(const char *filename) {
     }
 
     destroy_streamer(streamer);
+    free_trie(root);
 
     static lexer_result lr;
     lr.interns = lexer->interns;

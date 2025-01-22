@@ -26,3 +26,11 @@ void print_token(const token *token);
  * @return vector* Vector of tokens.
  */
 lexer_result *lex(const char *filename);
+
+/**
+ * @brief Converts a token_type enum to a string for debugging.
+ *
+ * @param t The token_type enum to print.
+ * @return const char*
+ */
+const char *token_type_str(token_type t);
