@@ -68,14 +68,14 @@ static void add_language_keywords(intern_table *interns) {
     // list of reserved language keywords
     const char *keywords[] = {
         "fn", "for", "while", "if", "else", "elif",
-        "is", "return", "by", "from", "import", "to",
+        "return", "by", "from", "import", "to",
         "print", "match", "false", "true"
     };
 
     // corresponding token types
     const token_type types[] = {
         FN, FOR, WHILE, IF, ELSE, ELSE_IF,
-        IS, RETURN, BY, FROM, IMPORT, TO,
+        RETURN, BY, FROM, IMPORT, TO,
         PRINT, MATCH, FALSE, TRUE
     };
 
@@ -196,8 +196,6 @@ const char *token_type_str(token_type t) {
         return "else";
     case ELSE_IF:
         return "else_if";
-    case IS:
-        return "is";
     case RETURN:
         return "return";
     case BY:
@@ -222,8 +220,6 @@ const char *token_type_str(token_type t) {
         return "false";
     case TRUE:
         return "true";
-    case MODULU:
-        return "modulu";
     case MUL:
         return "mul";
     case DIV:
@@ -311,9 +307,10 @@ static trie_node *intialize_trie() {
         {"*", MUL},   {"*=", MUL_EQ},
         {"/", DIV},   {"/=", DIV_EQ},     {"//", INT_DIV},   {"//=", INTDIV_EQ},
         {"^", CARROT},{"^=", CARROT_EQ},
-        {"%", MODULU},
-        {">", GT},    {">=", GTE},       {"<", LT},        {"<=", LTE},
-        {"==", COMP_EQ}, {"=", EQ},
+        {"%", MODULO},
+        {">", GT},    {">=", GTE},       {"<", LT},        {"<=", LTE}, {">>", RBITSHIFT}, {"<<", LBITSHIFT},
+        {"~", BITW_NOT},{"&", BITW_AND},{"|", BITW_OR},
+        {"==", COMP_EQ}, {"=", EQ}, {"!=", NOT_EQ},
         {"&&", AND},  {"||", OR},        {"!", NOT},
         {"(", LPAREN},{")", RPAREN},
         {"[", LSQPAREN},{"]", RSQPAREN},

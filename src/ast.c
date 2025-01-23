@@ -3,6 +3,7 @@
 #include "vector.h"
 #include "lexer.h"
 #include <stdio.h>
+#include <string.h>
 
 typedef enum {
     NODE_PROGRAM,     // root node
@@ -25,7 +26,7 @@ typedef struct {
     vector *tokens;
     int current; // current token index
     int has_main; // tracks if the main function was found
-    vector *scopes; // stack of scopes 
+    vector *scopes; // stack of scopes
     vector *errors; // accumulate error messages for the end of parsing
     ast_node *current_function; // currently parsed function
 } parser_state;
@@ -69,7 +70,7 @@ struct ast_node {
         // control structures
         // elifs are represented as if statements in the else block.
         struct {
-            ast_node *condition; 
+            ast_node *condition;
             ast_node *else_body;
 
             // for loops are just while loops with a variable and step
@@ -77,13 +78,92 @@ struct ast_node {
             ast_node *step; // i += 3
         } control;
 
+        // general expressions; print statements for example
+        ast_node *expression;
+
     } data;
 
     // all bodies would go here instead of being declared in the structs above.
     vector /* ast_node */ *children;
 
     // TODO: maybe add line and col for error tracking
+    int line; 
+    int col;
 };
+
+// Utility functions
+static int is_op(token *t);
+static int is_unary_op(token *t);
+static int is_binary_op(token *t);
+static void throw_error(parser_state *state, const char *msg);
+static void print_indent(int depth);
+static token *next(parser_state *state);
+static token *peek(parser_state *state, int ahead);
+static int accept(parser_state *state, token_type type);
+static int expect(parser_state *state, token_type type);
+
+// AST helper functions
+static ast_node *create_node(node_type type);
+
+// Parsing functions
+static ast_node *parse_function(parser_state *state);
+static ast_node *parse_if(parser_state *state);
+static ast_node *parse_while(parser_state *state);
+static ast_node *parse_for(parser_state *state);
+static ast_node *parse_assignment(parser_state *state);
+static ast_node *parse_print(parser_state *state);
+static ast_node *parse_function_call_or_definition(parser_state *state);
+static ast_node *parse_expression(parser_state *state);
+static ast_node *parse_binary_expression(parser_state *state, int min_precedence);
+
+static ast_node *parse_statement(parser_state *state);
+
+static ast_node *parse_block(parser_state *state);
+
+static int precedence(token_type op);
+
+// check if its an operator
+static int is_op(token *t) {
+    return is_binary_op(t) || is_unary_op(t);
+}
+
+// check if an operator is unary
+static int is_unary_op(token *t) {
+    switch(t->type) {
+    case SUB_ONE:
+    case ADD_ONE:
+    case NOT:
+    case SUB: // -x
+    case BITW_AND:
+    case BITW_OR:
+    case BITW_NOT:
+        return 1;
+    default:
+        return 0;
+    }
+}
+
+static int is_binary_op(token *t) {
+    switch(t->type) {
+    case ADD:
+    case SUB:
+    case MUL:
+    case DIV:
+    case MODULO:
+    case AND:
+    case OR:
+    case EQ:
+    case NOT_EQ:
+    case GT:
+    case GTE:
+    case LT:
+    case LTE:
+    case CARROT:
+        return 1;
+    default:
+        return 0;
+    }
+}
 
 static void throw_error(parser_state *state, const char *msg) {
     add_element(state->errors, &msg);
@@ -95,96 +175,39 @@ static void print_indent(int depth) {
         printf("  ");
 }
 
+// unconditional move forward
 static token *next(parser_state *state) {
     // no END handling here. we should never call next after seeing END
     return get_element(state->tokens, ++state->current);
 }
 
-void pretty_print_ast(ast_node *node, int depth) {
-    if (!node) return;
-    print_indent(depth);  // print indentation based on the depth
-
-    switch (node->type) {
-    case NODE_PROGRAM:
-        printf("start of program\n");
-        break;
-    case NODE_FUNCTION:
-        printf("node_function: %s\n", node->data.function.name);
-        if (node->children) {
-            for (int i = 0; i < node->children->size; i++) {
-                pretty_print_ast(node->children[i], depth + 1);
-            }
-        }
-        break;
-    case NODE_IF:
-        printf("node_if\n");
-        pretty_print_ast(node->data.control.condition, depth + 1);
-        if (node->children) {
-            for (int i = 0; i < node->children->size; i++) {
-                pretty_print_ast(node->children[i], depth + 1);
-            }
-        }
-        if (node->data.control.else_body) {
-            printf("else:\n");
-            pretty_print_ast(node->data.control.else_body, depth + 1);
-        }
-        break;
-    case NODE_WHILE:
-        printf("node_while\n");
-        pretty_print_ast(node->data.control.condition, depth + 1);
-        pretty_print_ast(node->data.control.body, depth + 1);
-        break;
-    case NODE_FOR:
-        printf("node_for\n");
-        pretty_print_ast(node->data.control.initializer, depth + 1);
-        pretty_print_ast(node->data.control.condition, depth + 1);
-        pretty_print_ast(node->data.control.step, depth + 1);
-        pretty_print_ast(node->data.control.body, depth + 1);
-        break;
-    case NODE_ASSIGNMENT:
-        printf("node_assignment: %s = \n", node->data.assignment.var_name);
-        pretty_print_ast(node->data.assignment.value, depth + 1);
-        break;
-    case NODE_BINARY_OP:
-        printf("node_binary_op: %s\n", token_type_str(node->data.binary.op));
-        pretty_print_ast(node->data.binary.left, depth + 1);
-        pretty_print_ast(node->data.binary.right, depth + 1);
-        break;
-    case NODE_UNARY_OP:
-        printf("node_unary_op\n");
-        pretty_print_ast(node->data.binary.left, depth + 1);
-        break;
-    case NODE_CALL:
-        printf("node_call\n");
-        break;
-    case NODE_RETURN:
-        printf("node_return\n");
-        pretty_print_ast(node->data.function.return_expr, depth + 1);
-        break;
-    case NODE_IDENTIFIER:
-        printf("node_identifier: %s\n", node->data.string);
-        break;
-    case NODE_NUMBER:
-        printf("node_number: %f\n", node->data.number.n);
-        break;
-    case NODE_STRING:
-        printf("node_string: \"%s\"\n", node->data.string);
-        break;
-    case NODE_PRINT:
-        printf("node_print\n");
-        break;
-    default:
-        printf("unknown node type\n");
-        break;
+// consume n-ahead without consuming
+static token *peek(parser_state *state, int ahead) {
+    if (state->current + ahead > state->tokens->size) {
+        return NULL;
+    } else {
+        return get_element(state->tokens, state->current+ahead);
     }
+}
 
-    if (node->children) {
-        for (int i = 0; i < node->child_count; i++) {
-            pretty_print_ast(node->children[i], depth + 1);
-        }
+// move forward only if we get the right token
+static int accept(parser_state *state, token_type type) {
+    if (((token*)get_element(state->tokens, state->current))->type == type) {
+        state->current++;
+        return 1;
     }
+    return 0;
+}
 
-    print_indent(depth);  // close indentation for this level
+// for mandatory tokens
+static int expect(parser_state *state, token_type type) {
+    if (((token*)get_element(state->tokens, state->current))->type == type) {
+        state->current++;
+        return 1;
+    } else {
+        throw_error(state, "Unexpected token type.");
+        return 0;
+    }
 }
 
 static ast_node *create_node(node_type type) {
@@ -198,7 +221,7 @@ static ast_node *create_node(node_type type) {
 static ast_node *parse_function(parser_state *state) {
     token *t = next(state);
     ast_node *func = create_node(NODE_FUNCTION);
-    
+
     if(state->current_function) {
         throw_error(state, "Nested functions are not allowed.");
         return NULL;
@@ -211,17 +234,20 @@ static ast_node *parse_function(parser_state *state) {
         return NULL;
     }
 
-    func->data.name = t->ident;
+    func->data.string = t->ident;
 
-    t = next(state);
-    if (t->type != LPAREN) {
-        throw_error(state, "Expected '(' after function name.");
+    // set has_main flag
+    if (strcmp(t->ident, "main") == 0)
+        state->has_main = 1;
+
+    if (!expect(state, LPAREN)) {
+        // throw_error(state, "Expected '(' after function name.");
         return NULL;
     }
 
     // parse parameters as list of identifiers
     t = next(state);
-    while (t->type == IDENTIFIER) {
+    while (t->type == IDENTIFIER || t->type == COMMA) {
         ast_node *param = create_node(NODE_IDENTIFIER);
         param->data.string = t->ident;
         add_element(func->data.function.params, &param);
@@ -229,8 +255,8 @@ static ast_node *parse_function(parser_state *state) {
     }
 
     // expect closing )
-    if (t->type != RPAREN) {
-        throw_error(state, "Expected ')' after function parameters");
+    if (!expect(state, RPAREN)) {
+        // throw_error(state, "Expected ')' after function parameters");
         return NULL;
     }
 
@@ -240,7 +266,6 @@ static ast_node *parse_function(parser_state *state) {
     t = next(state);
 
 
-
     // parse return stmt
     if (t->type == RETURN) {
         t = next(state);
@@ -248,21 +273,20 @@ static ast_node *parse_function(parser_state *state) {
         func->data.function.return_expr = return_stmt;
     }
 
-    // TODO: tokens after this at the same indent level are invalid. write a check for this 
-
+    // TODO: tokens after this at the same indent level are invalid. write a check for this
 
     // no longer inside a function
-    state->current_function == NULL;
+    state->current_function = NULL;
 
     return func;
 }
 
-static ast_node *parse_if(state) {
+static ast_node *parse_if(parser_state *state) {
     ast_node *i = create_node(NODE_IF);
     token *t = next(state);
 
     // assume parse_expression parses a whole line
-    i->data.control.condition = parse_expression(state); 
+    i->data.control.condition = parse_expression(state);
 
     t = next(state);
     if (t->type == INDENT) {
@@ -290,45 +314,153 @@ static ast_node *parse_while(parser_state *state) {
 }
 
 static ast_node *parse_for(parser_state *state) {
-    ast_node *i = create_node(NODE_FOR);
+    ast_node *for_node = create_node(NODE_FOR);
+
+    // parse iterator variable
     token *t = next(state);
+    if (t->type != IDENTIFIER) {
+        throw_error(state, "Expected an iterator variable in for loop.");
+        return NULL;
+    }
+    // create initializer node for the iterator
+    for_node->data.control.initializer = create_node(NODE_ASSIGNMENT);
+    for_node->data.control.initializer->data.assignment.var_name = t->ident;
 
-    // TODO: there has to be a better way to write this
-    if (t->type == IDENTIFIER) {
-        t = next(state);
-        if (t->type == FROM) {
-            t = next(state);
-            if (t->type == INTEGER || t->type == FLOAT) {
-                t = next(state);
+    // expect `from`
+    if (!expect(state, FROM)) {
+        throw_error(state, "Expected 'from' keyword in for loop.");
+        return NULL;
+    }
 
-            }
+    // parse start value (x)
+    t = next(state);
+    ast_node *start_value = NULL;
+    int start_is_var = 0;
+    if (t->type == IDENTIFIER || t->type == INTEGER || t->type == FLOAT) {
+        start_value = create_node(t->type == IDENTIFIER ? NODE_IDENTIFIER : NODE_NUMBER);
+        if (t->type == IDENTIFIER) {
+            start_value->data.string = t->ident;
+        } else {
+            if (t->type == FLOAT)
+                start_value->data.number.number = strtof(t->ident, NULL);
+            if (t->type == INTEGER)
+                start_value->data.number.number = strtol(t->ident, NULL, 10);
+        }
+    } else {
+        throw_error(state, "Expected a variable or numeric value after 'from' in for loop.");
+        return NULL;
+    }
+    for_node->data.control.initializer->data.assignment.value = start_value;
+
+    // expect `to`
+    if (!expect(state, TO)) {
+        throw_error(state, "Expected 'to' keyword in for loop.");
+        return NULL;
+    }
+
+    // parse end value (y)
+    t = next(state);
+    ast_node *end_value = NULL;
+    int end_is_variable = 0;
+    if (t->type == IDENTIFIER || t->type == INTEGER || t->type == FLOAT) {
+        end_value = create_node(t->type == IDENTIFIER ? NODE_IDENTIFIER : NODE_NUMBER);
+        if (t->type == IDENTIFIER) {
+            end_value->data.string = t->ident;
+        } else {
+            if (t->type == FLOAT)
+                end_value->data.number.number = strtof(t->ident, NULL);
+            if (t->type == INTEGER)
+                end_value->data.number.number = strtol(t->ident, NULL, 10);
+        }
+    } else {
+        throw_error(state, "Expected a variable or numeric value after 'to' in for loop.");
+        return NULL;
+    }
+    for_node->data.control.condition = end_value;
+
+    // optional `by`
+    ast_node *step_value = NULL;
+    /*
+    We can't infer the step size if the start or end values are variables. There's no easy way to tell if x > y.
+    */
+    if(start_is_var || end_is_variable) {
+        if (!expect(state, BY)) {
+            throw_error(state, "Expected 'by' keyword in for loop when 'from' or 'two' is a variable");
+            return NULL;
         }
     }
+    if (accept(state, BY)) {
+        t = next(state);
+        if (t->type == IDENTIFIER || t->type == INTEGER || t->type == FLOAT) {
+            step_value = create_node(t->type == IDENTIFIER ? NODE_IDENTIFIER : NODE_NUMBER);
+            if (t->type == IDENTIFIER) {
+                step_value->data.string = t->ident;
+            } else {
+                if (t->type == FLOAT)
+                    step_value->data.number.number = strtof(t->ident, NULL);
+                if (t->type == INTEGER)
+                    step_value->data.number.number = strtol(t->ident, NULL, 10);
+            }
+        } else {
+            throw_error(state, "Expected a variable or numeric value after 'by' in for loop.");
+            return NULL;
+        }
+    } else {
+        // default step: 1 or -1 based on start and end values
+        step_value = create_node(NODE_NUMBER);
+        step_value->data.number.number =
+            (start_value->type == NODE_NUMBER && end_value->type == NODE_NUMBER &&
+             start_value->data.number.number < end_value->data.number.number)
+            ? 1
+            : -1;
+    }
+    for_node->data.control.step = step_value;
 
-    if (t->type != INDENT) {
-        throw_error(state, "Missing body for for loop.");
+    // expect an indented block for the loop body
+    if (!expect(state, INDENT)) {
+        throw_error(state, "Expected indented block after for loop.");
+        return NULL;
     }
 
-    // parse body until dedent
+    // parse loop body
+    for_node->children = parse_block(state);
 
-    return i;
-
+    return for_node;
 }
 
 static ast_node *parse_assignment(parser_state *state) {
-    ast_node *i = create_node(NODE_ASSIGNMENT);
-    token *t = next(state);
+    token *t = next(state)
+    if (t->type != IDENTIFIER) {
+        throw_error(state, "Expected variable name in assignment.");
+        return NULL;
+    }
+    ast_node *node = create_node(NODE_ASSIGNMENT);
+    node->data.assignment.var_name = t->ident;
 
-    return i;
+    if (!expect(state, EQ)) {
+        throw_error(state, "Expected '=' in assignment.");
+        return NULL;
+    }
+
+    node->data.assignment.value = parse_expression(state);
+    if (!node->data.assignment.value) {
+        throw_error(state, "Invalid expression on right side of assignment");
+        return NULL;
+    }
+
+    return node;
 }
 
 static ast_node *parse_print(parser_state *state) {
-    ast_node *i = create_node(NODE_PRINT);
-    // read until a newline token. everything goes into print 
-    parse_expression(state);
+    ast_node *node = create_node(NODE_PRINT);
 
-    // TODO: make an ast_node for print
-    return i;
+    node->data.expression = parse_expression(state);
+    if (!node->data.expression) {
+        throw_error(state, "Expected an expression to print.");
+        return NULL;
+    }
+
+    return node;
 }
 
 static ast_node *parse_function_call_or_definition(parser_state *state) {
@@ -338,17 +470,140 @@ static ast_node *parse_function_call_or_definition(parser_state *state) {
 }
 
 static ast_node *parse_expression(parser_state *state) {
+    return parse_binary_expression(state, 0); // start with the lowest precedence
+}
+
+static ast_node *parse_binary_expression(parser_state *state, int min_precedence) {
     token *t = next(state);
+
+    ast_node *lhs = NULL;
     if (t->type == IDENTIFIER) {
-        // could be a function call or an assignment, or other random crap idk
+        lhs = create_node(NODE_IDENTIFIER);
+        lhs->data.string = t->ident;
+    } else if (t->type == INTEGER || t->type == FLOAT) {
+        lhs = create_node(NODE_NUMBER);
+        // TODO: convert these to actual numbers
+        if (t->type == INTEGER) {
+            lhs->data.number.number = strtol(t->ident, NULL, 10);
+        } else {
+            lhs->data.number.fl = strtof(t->ident, NULL);
+        }
+    } else if (t->type == STRING) { // only for string concatenation
+        token *next_t = peek(state, 1);
+        if (!is_op(next_t) || next_t->type != ADD && next_t->type != EQ) {
+            throw_error(state, "Strings are not valid operands for this operation.");
+            return NULL;
+        }
+        lhs = create_node(NODE_STRING);
+        lhs->data.string = t->ident;
+    } else if (is_unary_op(t)) {
+        ast_node *unary_node = create_node(NODE_UNARY_OP);
+        unary_node->data.binary.op = t->type;
+        unary_node->data.binary.left = parse_binary_expression(state, precedence(t->type));
+        lhs = unary_node;
+    } else {
+        throw_error(state, "Unexpected token in expression.");
+        return NULL;
     }
 
-    return NULL;
+    // parse the rhs in a loop
+    while(state->current < state->tokens->size) {
+        token *next_t = get_element(state->tokens, state->current);
+
+        // end of expression
+        if (next_t->type == NEWLINE)
+            break;
+        if (!is_binary_op(next_t))
+            break;
+        if (precedence(next_t->type) < min_precedence)
+            break;
+
+        next(state);
+
+        int next_precedence = precedence(next_t->type);
+        ast_node *rhs = parse_binary_expression(state, next_precedence + 1);
+
+        // ensure rhs is valid
+        if (next_t->type == ADD || next_t->type == EQ) {
+            // string concatenation or comparison allowed
+            if (lhs->type != NODE_STRING && rhs->type != NODE_STRING) {
+                throw_error(state, "Operator '+' or '==' can only be used with strings.");
+                return NULL;
+            }
+        } else if (lhs->type == NODE_STRING || rhs->type == NODE_STRING) {
+            // strings are not valid for other operators
+            throw_error(state, "Invalid operation on strings.");
+            return NULL;
+        }
+
+        // create a binary operation node
+        ast_node *binary_op = create_node(NODE_BINARY_OP);
+        binary_op->data.binary.left = lhs;
+        binary_op->data.binary.right = rhs;
+        binary_op->data.binary.op = next_t->type;
+
+        // update lhs to be the new binary operation node
+        lhs = binary_op;
+    }
+
+    return lhs;
+}
+
+static int precedence(token_type op) {
+    switch (op) {
+    case OR:            // logical OR (lowest precedence)
+        return 1;
+    case AND:           // logical AND
+        return 2;
+    case EQ:            // equality (==) or inequality (!=)
+    case NOT_EQ:
+        return 3;
+    case LT:            // relational operators (<, <=, >, >=)
+    case LTE:
+    case GT:
+    case GTE:
+        return 4;
+    case ADD:           // addition and subtraction
+    case SUB:
+        return 5;
+    case MUL:           // multiplication, division, and modulo
+    case DIV:
+    case MODULO:
+        return 6;
+    case CARROT:        // exponentiation (^)
+        return 7;       // highest precedence
+    default:
+        return 0;       // unknown operators have no precedence
+    }
+}
+
+static ast_node *parse_statement(parser_state *state) {
+    token *t = get_element(state->tokens, state->current);
+
+    switch (t->type) {
+    case FN:
+        return parse_function(state);
+    case IF:
+        return parse_if(state);
+    case FOR:
+        return parse_for(state);
+    case WHILE:
+        return parse_while(state);
+    case PRINT:
+        return parse_print(state);
+    case IDENTIFIER:
+        return parse_assignment(state); // assume it's an assignment if it starts with an identifier
+    case END:
+        return NULL; // signal the end of parsing
+    default:
+        throw_error(state, "Unexpected token in statement.");
+        return NULL;
+    }
 }
 
 // bodies of things
 static ast_node *parse_block(parser_state *state) {
-    ast_node *block = create_node(NODE_PROGRAM); 
+    ast_node *block = create_node(NODE_PROGRAM);
     token *t = next(state);
 
     while(t->type != DEDENT && t->type != END) {
@@ -362,62 +617,33 @@ static ast_node *parse_block(parser_state *state) {
 
 ast_node *gen_ast(vector *tokens) {
     parser_state state = {
-        .current = -1, 
+        .current = -1,
         .tokens = tokens,
-        .has_main = false,
-        .errors=create_vector(sizeof(char*), 4)
+        .has_main = 0,
+        .errors = create_vector(sizeof(char *), 4)
     };
-    token *t = next(state);
+
     ast_node *program = create_node(NODE_PROGRAM);
 
     while (state.current < tokens->size) {
-        switch(current_token->type) {
-            case FN:
-                ast_node *node = parse_function(state);
-                add_element(program->children, node);
-            break;
-            case IF:
-                ast_node *node = parse_if(state);
-                add_element(program->children, node);
-            break;
-            case FOR:
-                ast_node *node = parse_for(state);
-                add_element(program->children, node);
-            break;
-            case WHILE:
-                ast_node *node = parse_while(state);
-                add_element(program->children, node);
-            break;
-            case PRINT:
-                ast_node *node = parse_print(state);
-                add_element(program->children, node);
-            break;
-            case IDENTIFIER:
-                ast_node *node = parse_ident(state);
-                add_element(program->children, node);
-            break;
-            case END:
-                // gather errors or safely return
-            break;
-            default:
-                fprintf(stderr, "hmm, why is a %s here?", token_type_str(t->type));
-                // TODO: add to errors later on
-            break;
+        ast_node *stmt = parse_statement(&state);
+        if (stmt) {
+            add_element(program->children, &stmt);
+        } else {
+            // synchronize(&state); // skip invalid tokens
         }
-        state.current++;
     }
 
-    // make sure main exists
-    // TODO: add this to the errors array
+    // ensure "main" function exists
     if (!state.has_main) {
-       throw_error(&state, "Error: your program has no entry point. Please define a main function.");
+        throw_error(&state, "Your program has no entry point. Please define a main function.");
         return NULL;
     }
 
-    // check for errors
-    if (state.errors) {
-       // TODO: handle this later 
-       return NULL;
+    // check for accumulated errors
+    if (state.errors->size > 0) {
+        fprintf(stderr, "Parsing completed with errors.\n");
+        return NULL;
     }
 
     return program;

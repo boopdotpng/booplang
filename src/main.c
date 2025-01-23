@@ -14,7 +14,7 @@ int main(int argc, char *argv[]) {
         print_token(get_element(l->tokens, i));
     }
 
+    printf("\n\n\n\n");
+
     ast_node *program = gen_ast(l->tokens);
-    // print at max depth
-    pretty_print_ast(program, -1);
 }
