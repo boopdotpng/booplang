@@ -6,6 +6,13 @@ typedef struct token token;
 typedef struct lexer lexer;
 typedef struct intern_table intern_table;
 
+// represents an actual token
+struct token {
+    token_type type;
+    char *ident; // if not a keyword/operator, probably a variable or function name
+    int col;
+    int line;
+};
 
 typedef struct {
     vector *tokens;

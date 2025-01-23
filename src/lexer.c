@@ -18,13 +18,7 @@
 // max length for strings
 #define MAX_STRING_LEN 256
 
-// represents an actual token
-struct token {
-    token_type type;
-    char *ident; // if not a keyword/operator, probably a variable or function name
-    int col;
-    int line;
-};
+
 
 typedef struct {
     const char *symbol;
@@ -519,6 +513,9 @@ lexer_result *lex(const char *filename) {
         add_token_null(lexer, NEWLINE);
         lexer->line++;
     }
+
+    // add an END token
+    add_token_null(lexer, END);
 
     destroy_streamer(streamer);
     free_trie(root);
