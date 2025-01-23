@@ -18,11 +18,11 @@ Optionally, you can disable formatting (even if you have astyle installed) by ru
 - [x] write an open-addressed hashmap with double hashing from scratch
 - [x] finalize a syntax for my language
 - [x] implement string interning
+- [x] write the lexer/tokenizer 
+- [ ] write an abstract syntax tree generator
 - [ ] remove unnecessary failed malloc checks. never gonna happen
-- [ ] write the lexer/tokenizer (halfway done)
-- [ ] write an abstract syntax tree
-- [ ] type checking / minor optimizations
 - [ ] error handling / nice error messages
+- [ ] type checking / minor optimizations
 - [ ] come up with my own IR
 - [ ] ast -> ir
 - [ ] ir -> arm assembly
