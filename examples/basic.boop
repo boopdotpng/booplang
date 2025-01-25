@@ -7,7 +7,7 @@ fn factorial(number)
 fn main() ; this is a comment
     num = 5
     fact = factorial(num)
-    print(fact)
+    print fact
 
     i = 1
     while i < 10
@@ -15,7 +15,7 @@ fn main() ; this is a comment
         i++
     
     ; you can write for/range loops
-    for i from 1 to 6 by 0.5 ; "by" defaults to 1 or -1
+    for i from 1 to 6 by 0.5 ; "by" defaults to 1 or -1 if not specified
         print i+1
 
     ; a hello world

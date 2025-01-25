@@ -18,8 +18,6 @@
 // max length for strings
 #define MAX_STRING_LEN 256
 
-
-
 typedef struct {
     const char *symbol;
     token_type type;
