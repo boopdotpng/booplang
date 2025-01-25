@@ -8,7 +8,9 @@ for directory in ['src', 'include']:
             path = os.path.join(root, file)
             try:
                 with open(path, 'r', encoding='utf-8') as f:
-                    line_counts[path] = sum(1 for _ in f)
+                    lc = sum(1 for _ in f)
+                    if lc != 0:
+                        line_counts[path] = lc
             except:
                 print(f"Warning: Couldn't read {path}")
 
