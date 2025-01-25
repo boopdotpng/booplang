@@ -5,10 +5,10 @@
 #include "token.h"
 
 // +, -, *, /, |, =, &, >, <, %, !, ^, (, ), [, ], , "
-#define SYMBOL_COUNT 18
+#define SYMBOL_COUNT 19
 
 // used to determine the index of each char
-static const char SYMBOL_LIST[SYMBOL_COUNT] = {'+', '-', '*', '/', '|', '=', '&', '>', '<', '%', '!', '"', '^', '(', ')', '[', ']', ','};
+static const char SYMBOL_LIST[SYMBOL_COUNT] = {'+', '-', '*', '/', '|', '=', '&', '>', '<', '%', '!', '"', '^', '(', ')', '[', ']', ',', '~'};
 
 struct trie_node {
     struct trie_node *children[SYMBOL_COUNT];
