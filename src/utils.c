@@ -10,7 +10,7 @@ file_streamer *create_streamer(const char *filename) {
     if (!streamer->file) {
         perror("failed to open file");
         free(streamer);
-        return NULL;
+        exit(1);
     }
 
     return streamer;
@@ -31,6 +31,7 @@ size_t stream_line(file_streamer *streamer, char *buffer) {
 
     else if (ferror(streamer->file)) {
         perror("error reading file");
+        exit(1);
     }
 
     return 0;
