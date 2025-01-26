@@ -74,7 +74,6 @@ struct ast_node {
         struct {
             char *name;
             vector /* ast_node */ *params;
-            int param_count;
             ast_node *return_expr; // optional
             token_type return_type; // ir needs a return type
         } function;
@@ -374,7 +373,8 @@ static int accept(parser_state *state, token_type type) {
 
 // for mandatory tokens
 static int expect(parser_state *state, token_type type) {
-    if (((token*)get_element(state->tokens, state->current))->type == type) {
+    token *t = peek(state, 1);
+    if (t->type == type) {
         state->current++;
         return 1;
     } else {
@@ -416,13 +416,15 @@ static ast_node *parse_function(parser_state *state) {
         state->has_main = 1;
 
     if (!expect(state, LPAREN)) {
-        // throw_error(state, "Expected '(' after function name.");
+        throw_error(state, "Expected '(' after function name.");
         return NULL;
     }
 
     // parse parameters as comma separated list of identifiers
     t = next(state);
     int expect_comma = 0;
+
+    func->data.function.params = create_vector(sizeof(ast_node), 4);
 
     while (t->type == IDENTIFIER || (t->type == COMMA && expect_comma)) {
         if (t->type == IDENTIFIER) {
@@ -439,11 +441,8 @@ static ast_node *parse_function(parser_state *state) {
         t = next(state);
     }
 
-    if (expect(state, COMMA))
-        throw_error(state, "Unexpected trailing comma in parameter list");
-
     // expect closing )
-    if (!expect(state, RPAREN)) {
+    if (t->type != RPAREN) {
         throw_error(state, "Expected ')' after function parameters");
         return NULL;
     }
@@ -649,79 +648,94 @@ static ast_node *parse_function_call_or_definition(parser_state *state) {
 }
 
 static ast_node *parse_expression(parser_state *state) {
-    return parse_binary_expression(state, 0); // start with the lowest precedence
+    return parse_binary_expression(state, 0);
 }
 
 static ast_node *parse_binary_expression(parser_state *state, int min_precedence) {
-    token *t = next(state);
-
     ast_node *lhs = NULL;
+
+    // Parse the left-hand side (primary expression or unary op)
+    token *t = get_element(state->tokens, state->current);
+
     if (t->type == IDENTIFIER) {
         lhs = create_node(NODE_IDENTIFIER);
         lhs->data.string = t->ident;
+        state->current++; // Consume the identifier
     } else if (t->type == INTEGER || t->type == FLOAT) {
         lhs = create_node(NODE_NUMBER);
-        // TODO: convert these to actual numbers
         if (t->type == INTEGER) {
             lhs->data.number.number = strtol(t->ident, NULL, 10);
         } else {
             lhs->data.number.fl = strtof(t->ident, NULL);
         }
-    } else if (t->type == STRING) { // only for string concatenation
-        token *next_t = peek(state, 1);
-        if (!is_op(next_t) || next_t->type != ADD && next_t->type != EQ) {
-            throw_error(state, "Strings are not valid operands for this operation.");
+        state->current++; // Consume the number
+    } else if (t->type == STRING) {
+        // Allow string literals in expressions only if used with '+' or '=='
+        ast_node *string_node = create_node(NODE_STRING);
+        string_node->data.string = t->ident;
+        lhs = string_node;
+        state->current++; // Consume the string
+    } else if (is_unary_op(t)) {
+        // Handle unary operators
+        state->current++; // Consume the unary operator
+        ast_node *operand = parse_binary_expression(state, precedence(t->type));
+        if (!operand) {
+            throw_error(state, "Invalid operand for unary operator.");
             return NULL;
         }
-        lhs = create_node(NODE_STRING);
-        lhs->data.string = t->ident;
-    } else if (is_unary_op(t)) {
         ast_node *unary_node = create_node(NODE_UNARY_OP);
         unary_node->data.binary.op = t->type;
-        unary_node->data.binary.left = parse_binary_expression(state, precedence(t->type));
+        unary_node->data.binary.left = operand;
         lhs = unary_node;
     } else {
         throw_error(state, "Unexpected token in expression.");
         return NULL;
     }
 
-    // parse the rhs in a loop
-    while(state->current < state->tokens->size) {
-        token *next_t = next(state);
+    // Parse binary operators and their operands
+    while (state->current < state->tokens->size) {
+        token *op_token = get_element(state->tokens, state->current);
 
-        // end of expression
-        if (next_t->type == NEWLINE)
-            break;
-        if (!is_binary_op(next_t))
-            break;
-        if (precedence(next_t->type) < min_precedence)
-            break;
+        if (!is_binary_op(op_token)) {
+            break; // Not a binary operator, end of expression
+        }
 
-        next(state);
+        int op_precedence = precedence(op_token->type);
+        if (op_precedence < min_precedence) {
+            break; // Operator precedence too low, end of this expression
+        }
 
-        int next_precedence = precedence(next_t->type);
-        ast_node *rhs = parse_binary_expression(state, next_precedence + 1);
+        // Consume the operator
+        state->current++;
 
-        // ensure rhs is valid
-        if (next_t->type == ADD || next_t->type == EQ) {
-            // string concatenation or comparison allowed
+        // Determine the next minimum precedence
+        int next_min_precedence = op_precedence + 1;
+
+        // Parse the right-hand side expression
+        ast_node *rhs = parse_binary_expression(state, next_min_precedence);
+        if (!rhs) {
+            throw_error(state, "Invalid right-hand side in binary expression.");
+            return NULL;
+        }
+
+        // Ensure operator compatibility (e.g., string concatenation)
+        if ((op_token->type == ADD || op_token->type == EQ)) {
             if (lhs->type != NODE_STRING && rhs->type != NODE_STRING) {
                 throw_error(state, "Operator '+' or '==' can only be used with strings.");
                 return NULL;
             }
         } else if (lhs->type == NODE_STRING || rhs->type == NODE_STRING) {
-            // strings are not valid for other operators
             throw_error(state, "Invalid operation on strings.");
             return NULL;
         }
 
-        // create a binary operation node
+        // Create a binary operation node
         ast_node *binary_op = create_node(NODE_BINARY_OP);
         binary_op->data.binary.left = lhs;
         binary_op->data.binary.right = rhs;
-        binary_op->data.binary.op = next_t->type;
+        binary_op->data.binary.op = op_token->type;
 
-        // update lhs to be the new binary operation node
+        // Update lhs to be the new binary operation node
         lhs = binary_op;
     }
 
@@ -757,7 +771,7 @@ static int precedence(token_type op) {
 }
 
 static ast_node *parse_statement(parser_state *state) {
-    token *t = next(state);
+    token *t = get_element(state->tokens, state->current);
 
     switch (t->type) {
     case FN:
@@ -808,7 +822,7 @@ static void parse_block(parser_state *state, vector *children) {
 
 ast_node *gen_ast(vector *tokens) {
     parser_state state = {
-        .current = -1,
+        .current = 0,
         .tokens = tokens,
         .has_main = 0,
         .errors = create_vector(sizeof(char *), 4)
