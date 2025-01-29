@@ -19,7 +19,7 @@ typedef enum {
     NODE_IDENTIFIER,  // variable/function names
     NODE_NUMBER,      // numeric literals
     NODE_STRING,      // a string
-    NODE_PRINT        // language-reserved print
+    NODE_PRINT,       // language-reserved print
 } node_type;
 
 typedef struct {
@@ -40,7 +40,10 @@ typedef struct {
     int has_main; // tracks if the main function was found
     vector /* scope_table */ scopes; // stack of scopes
     vector *errors; // accumulate error messages for the end of parsing
-    ast_node *current_function; // currently parsed function
+    ast_node *current_function; // current function (for nested function detection)
+    // error reporting tokens
+    int line;
+    int col;
 } parser_state;
 
 struct ast_node {
@@ -74,7 +77,8 @@ struct ast_node {
         struct {
             char *name;
             vector /* ast_node */ *params;
-            ast_node *return_expr; // optional
+            // pointer to return children for faster access
+            vector /* *ast_node */ *returns; // list of return nodes
             token_type return_type; // ir needs a return type
         } function;
 
@@ -166,11 +170,9 @@ static int is_unary_op(token *t) {
     switch(t->type) {
     case SUB_ONE:
     case ADD_ONE:
-    case NOT:
+    case NOT: // !
     case SUB: // -x
-    case BITW_AND:
-    case BITW_OR:
-    case BITW_NOT:
+    case BITW_NOT: // ~
         return 1;
     default:
         return 0;
@@ -186,13 +188,15 @@ static int is_binary_op(token *t) {
     case MODULO:
     case AND:
     case OR:
-    case EQ:
+    case COMP_EQ:
     case NOT_EQ:
     case GT:
     case GTE:
     case LT:
     case LTE:
     case CARROT:
+    case BITW_AND:
+    case BITW_OR:
         return 1;
     default:
         return 0;
@@ -201,7 +205,7 @@ static int is_binary_op(token *t) {
 
 static void throw_error(parser_state *state, const char *msg) {
     add_element(state->errors, &msg);
-    fprintf(stderr, "Error: %s\n", msg);
+    fprintf(stderr, "%s at line %d:%d (%s) \n", msg, state->line, state->col,token_type_str(peek(state,0)->type));
 }
 
 static void print_indent(int depth) {
@@ -224,11 +228,12 @@ void pretty_print_ast(ast_node *node, int depth) {
 
     case NODE_FUNCTION:
         printf("function: %s\n", node->data.function.name);
-        if (node->data.function.return_expr) {
-            print_indent(depth + 1);
-            printf("return:\n");
-            pretty_print_ast(node->data.function.return_expr, depth + 2);
-        }
+        // TODO: change logic for return expressions
+        // if (node->data.function.return_expr) {
+        //     print_indent(depth + 1);
+        //     printf("return:\n");
+        //     pretty_print_ast(node->data.function.return_expr, depth + 2);
+        // }
         break;
 
     case NODE_IF:
@@ -350,7 +355,10 @@ void pretty_print_ast(ast_node *node, int depth) {
 // unconditional move forward
 static token *next(parser_state *state) {
     // no END handling here. we should never call next after seeing END
-    return get_element(state->tokens, ++state->current);
+    token *n = get_element(state->tokens, ++state->current); // move forward and get the next token
+    state->col = n->col;
+    state->line = n->line;
+    return n;
 }
 
 // consume n-ahead without consuming
@@ -364,8 +372,11 @@ static token *peek(parser_state *state, int ahead) {
 
 // move forward only if we get the right token
 static int accept(parser_state *state, token_type type) {
-    if (((token*)get_element(state->tokens, state->current))->type == type) {
+    token *current_token = peek(state, 0);
+    if (current_token->type == type) {
         state->current++;
+        state->line = current_token->line;
+        state->col = current_token->col;
         return 1;
     }
     return 0;
@@ -390,9 +401,24 @@ static ast_node *create_node(node_type type) {
     return node;
 }
 
+// modifies current function to add the return statement and type
+static ast_node *parse_return(parser_state *state) {
+    // skip return token
+    next(state);
+
+    ast_node *ret = parse_expression(state);
+    // track returns for an easier during IR generation
+    // add_element(state->current_function->data.function.returns, ret);
+    // TODO: determine the return type by looking at the expression
+
+    // state->current_function->data.function.return_type = FLOAT;
+
+    return ret;
+}
+
 // helper parse functions
 static ast_node *parse_function(parser_state *state) {
-    token *t = next(state);
+    token *t = next(state); // skip fn
     ast_node *func = create_node(NODE_FUNCTION);
 
     if(state->current_function) {
@@ -450,6 +476,8 @@ static ast_node *parse_function(parser_state *state) {
     // parse function body
     // TODO: pretty sure the vector is already created
     func->children = create_vector(sizeof(ast_node), 8);
+    // create return vector
+    func->data.function.returns = create_vector(sizeof(ast_node*), 1);
     parse_block(state, func->children);
 
     // no longer inside a function
@@ -607,7 +635,7 @@ static ast_node *parse_for(parser_state *state) {
 }
 
 static ast_node *parse_assignment(parser_state *state) {
-    token *t = next(state);
+    token *t = peek(state, 0);
     if (t->type != IDENTIFIER) {
         throw_error(state, "Expected variable name in assignment.");
         return NULL;
@@ -619,6 +647,9 @@ static ast_node *parse_assignment(parser_state *state) {
         throw_error(state, "Expected '=' in assignment.");
         return NULL;
     }
+
+    // skip EQ token
+    next(state);
 
     node->data.assignment.value = parse_expression(state);
     if (!node->data.assignment.value) {
@@ -652,15 +683,46 @@ static ast_node *parse_expression(parser_state *state) {
 }
 
 static ast_node *parse_binary_expression(parser_state *state, int min_precedence) {
+    // parse a "primary" expression or unary op
+    token *t = peek(state, 0);
+    if (!t) {
+        throw_error(state, "unexpected end of tokens in expression.");
+        return NULL;
+    }
+
     ast_node *lhs = NULL;
 
-    // Parse the left-hand side (primary expression or unary op)
-    token *t = get_element(state->tokens, state->current);
-
-    if (t->type == IDENTIFIER) {
+    // handle unary first
+    if (is_unary_op(t)) {
+        // consume unary op
+        next(state);
+        // parse the operand, giving the unary op's precedence so it binds correctly
+        ast_node *operand = parse_binary_expression(state, precedence(t->type));
+        if (!operand) {
+            throw_error(state, "invalid operand for unary op.");
+            return NULL;
+        }
+        lhs = create_node(NODE_UNARY_OP);
+        lhs->data.binary.op = t->type;
+        lhs->data.binary.left = operand;
+    } else if (t->type == LPAREN) {
+        // handle parentheses
+        next(state); // consume '('
+        lhs = parse_binary_expression(state, 0);
+        if (!lhs) {
+            throw_error(state, "invalid expression in parentheses.");
+            return NULL;
+        }
+        if (!peek(state, 0) || peek(state, 0)->type != RPAREN) {
+            throw_error(state, "missing closing parenthesis.");
+            return lhs; // returning partially so we don't leak memory
+        }
+        // consume ')'
+        next(state);
+    } else if (t->type == IDENTIFIER) {
         lhs = create_node(NODE_IDENTIFIER);
         lhs->data.string = t->ident;
-        state->current++; // Consume the identifier
+        next(state);
     } else if (t->type == INTEGER || t->type == FLOAT) {
         lhs = create_node(NODE_NUMBER);
         if (t->type == INTEGER) {
@@ -668,75 +730,49 @@ static ast_node *parse_binary_expression(parser_state *state, int min_precedence
         } else {
             lhs->data.number.fl = strtof(t->ident, NULL);
         }
-        state->current++; // Consume the number
+        next(state);
     } else if (t->type == STRING) {
-        // Allow string literals in expressions only if used with '+' or '=='
-        ast_node *string_node = create_node(NODE_STRING);
-        string_node->data.string = t->ident;
-        lhs = string_node;
-        state->current++; // Consume the string
-    } else if (is_unary_op(t)) {
-        // Handle unary operators
-        state->current++; // Consume the unary operator
-        ast_node *operand = parse_binary_expression(state, precedence(t->type));
-        if (!operand) {
-            throw_error(state, "Invalid operand for unary operator.");
-            return NULL;
-        }
-        ast_node *unary_node = create_node(NODE_UNARY_OP);
-        unary_node->data.binary.op = t->type;
-        unary_node->data.binary.left = operand;
-        lhs = unary_node;
+        lhs = create_node(NODE_STRING);
+        lhs->data.string = t->ident;
+        next(state);
     } else {
-        throw_error(state, "Unexpected token in expression.");
+        throw_error(state, "unexpected token in expression.");
         return NULL;
     }
 
-    // Parse binary operators and their operands
-    while (state->current < state->tokens->size) {
-        token *op_token = get_element(state->tokens, state->current);
+    // now parse trailing binary ops (left-associative with precedence)
+    while (1) {
+        token *op_token = peek(state, 0);
+        if (!op_token || !is_binary_op(op_token)) break;
 
-        if (!is_binary_op(op_token)) {
-            break; // Not a binary operator, end of expression
-        }
+        int op_prec = precedence(op_token->type);
+        if (op_prec < min_precedence) break;
 
-        int op_precedence = precedence(op_token->type);
-        if (op_precedence < min_precedence) {
-            break; // Operator precedence too low, end of this expression
-        }
+        next(state); // consume the operator
+        int next_min_prec = op_prec + 1;
 
-        // Consume the operator
-        state->current++;
-
-        // Determine the next minimum precedence
-        int next_min_precedence = op_precedence + 1;
-
-        // Parse the right-hand side expression
-        ast_node *rhs = parse_binary_expression(state, next_min_precedence);
+        ast_node *rhs = parse_binary_expression(state, next_min_prec);
         if (!rhs) {
-            throw_error(state, "Invalid right-hand side in binary expression.");
-            return NULL;
+            throw_error(state, "invalid rhs in binary expression.");
+            return lhs; // better than returning null bc we keep some part
         }
 
-        // Ensure operator compatibility (e.g., string concatenation)
-        if ((op_token->type == ADD || op_token->type == EQ)) {
-            if (lhs->type != NODE_STRING && rhs->type != NODE_STRING) {
-                throw_error(state, "Operator '+' or '==' can only be used with strings.");
-                return NULL;
+        // if either side is a string, only allow certain ops
+        if (lhs->type == NODE_STRING || rhs->type == NODE_STRING) {
+            // allow '+' or '==' or '!=' for strings, everything else is nonsense
+            if (op_token->type != ADD &&
+                    op_token->type != COMP_EQ &&
+                    op_token->type != NOT_EQ) {
+                throw_error(state, "operator not permitted for string operands.");
+                return lhs;
             }
-        } else if (lhs->type == NODE_STRING || rhs->type == NODE_STRING) {
-            throw_error(state, "Invalid operation on strings.");
-            return NULL;
         }
 
-        // Create a binary operation node
-        ast_node *binary_op = create_node(NODE_BINARY_OP);
-        binary_op->data.binary.left = lhs;
-        binary_op->data.binary.right = rhs;
-        binary_op->data.binary.op = op_token->type;
-
-        // Update lhs to be the new binary operation node
-        lhs = binary_op;
+        ast_node *bin_node = create_node(NODE_BINARY_OP);
+        bin_node->data.binary.left = lhs;
+        bin_node->data.binary.right = rhs;
+        bin_node->data.binary.op = op_token->type;
+        lhs = bin_node;
     }
 
     return lhs;
@@ -771,7 +807,10 @@ static int precedence(token_type op) {
 }
 
 static ast_node *parse_statement(parser_state *state) {
-    token *t = get_element(state->tokens, state->current);
+    while (peek(state, 0)->type == NEWLINE)
+        next(state);
+
+    token *t = peek(state, 0);
 
     switch (t->type) {
     case FN:
@@ -788,8 +827,12 @@ static ast_node *parse_statement(parser_state *state) {
         return parse_assignment(state); // assume it's an assignment if it starts with an identifier
     case END:
         return NULL; // signal the end of parsing
+    case MATCH:
+        return NULL;
+    case RETURN:
+        return parse_return(state);
     default:
-        throw_error(state, "Unexpected token in statement.");
+        throw_error(state, "unexpected token in statement");
         return NULL;
     }
 }
@@ -797,12 +840,12 @@ static ast_node *parse_statement(parser_state *state) {
 // bodies of things
 static void parse_block(parser_state *state, vector *children) {
     if (!expect(state, NEWLINE)) {
-        throw_error(state, "Expected newline before block.");
+        throw_error(state, "expected newline before block");
         return;
     }
 
     if (!expect(state, INDENT)) {
-        throw_error(state, "Expected indent before block.");
+        throw_error(state, "expected indent before block");
         return;
     }
 
@@ -818,6 +861,9 @@ static void parse_block(parser_state *state, vector *children) {
         else
             fprintf(stderr, "not a statement in parse_block");
     }
+
+    if(peek(state, 0)->type == DEDENT)
+        next(state);
 }
 
 ast_node *gen_ast(vector *tokens) {
@@ -825,7 +871,10 @@ ast_node *gen_ast(vector *tokens) {
         .current = 0,
         .tokens = tokens,
         .has_main = 0,
-        .errors = create_vector(sizeof(char *), 4)
+        .errors = create_vector(sizeof(char *), 4),
+        .current_function = NULL,
+        .line = 0,
+        .col = 0,
     };
 
     ast_node *program = create_node(NODE_PROGRAM);
@@ -841,13 +890,13 @@ ast_node *gen_ast(vector *tokens) {
 
     // ensure "main" function exists
     if (!state.has_main) {
-        throw_error(&state, "Your program has no entry point. Please define a main function.");
+        fprintf(stderr, "your program has no entry point. please define a main function.");
         return NULL;
     }
 
     // check for accumulated errors
     if (state.errors->size > 0) {
-        fprintf(stderr, "Parsing completed with errors.\n");
+        fprintf(stderr, "see above errors\n");
         return NULL;
     }
 
