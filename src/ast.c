@@ -6,37 +6,37 @@
 #include <string.h>
 
 typedef enum {
-    NODE_PROGRAM,     // root node
-    NODE_FUNCTION,    // function definition
-    NODE_IF,          // if statement
-    NODE_WHILE,       // while loop
-    NODE_FOR,         // for loop
-    NODE_ASSIGNMENT,  // variable assignment
-    NODE_BINARY_OP,   // binary ops (+, -, *, /, etc.)
-    NODE_UNARY_OP,    // unary ops (++, --)
-    NODE_CALL,        // function call
-    NODE_RETURN,      // return statement
-    NODE_IDENTIFIER,  // variable/function names
-    NODE_NUMBER,      // numeric literals
-    NODE_STRING,      // a string
-    NODE_PRINT,       // language-reserved print
+    NODE_PROGRAM,
+    NODE_FUNCTION,
+    NODE_IF,
+    NODE_WHILE,
+    NODE_FOR,
+    NODE_ASSIGNMENT,
+    NODE_BINARY_OP,
+    NODE_UNARY_OP,
+    NODE_CALL,
+    NODE_RETURN,
+    NODE_IDENTIFIER,
+    NODE_NUMBER,
+    NODE_STRING,
+    NODE_PRINT,
 } node_type;
 
 typedef struct {
     char *name;
-    int scope_level; // 0 for global
-    struct symbol *next; // linked list chain to lookup symbols
+    int scope_level;
+    struct symbol *next;
 } symbol;
 
 // scope table
 typedef struct {
     vector /* symbol */ *symbols;
-    size_t parent_scope; // index of parent scope
+    size_t parent_scope;
 } scope_table;
 
 typedef struct {
     vector *tokens;
-    int current; // current token index
+    int current;
     int has_main; // tracks if the main function was found
     vector /* scope_table */ scopes; // stack of scopes
     vector *errors; // accumulate error messages for the end of parsing
@@ -509,11 +509,13 @@ static ast_node *parse_while(parser_state *state) {
 
     w->data.control.condition = parse_expression(state);
 
-    if (t->type == INDENT) {
-        // parse while body
-    } else {
-        throw_error(state, "Missing body for while loop.");
+    if (!accept(state, NEWLINE)) {
+        throw_error(state, "Expected newline after while condition.");
+        return w;
     }
+
+    w->children = create_vector(sizeof(ast_node), 8);
+    parse_block(state, w->children);
 
     return w;
 }
@@ -594,6 +596,7 @@ static ast_node *parse_for(parser_state *state) {
             return NULL;
         }
     }
+    next(state);
     if (accept(state, BY)) {
         t = next(state);
         if (t->type == IDENTIFIER || t->type == INTEGER || t->type == FLOAT) {
@@ -663,6 +666,8 @@ static ast_node *parse_assignment(parser_state *state) {
 static ast_node *parse_print(parser_state *state) {
     ast_node *node = create_node(NODE_PRINT);
 
+    next(state);
+
     node->data.expression = parse_expression(state);
     if (!node->data.expression) {
         throw_error(state, "Expected an expression to print.");
@@ -672,10 +677,31 @@ static ast_node *parse_print(parser_state *state) {
     return node;
 }
 
-static ast_node *parse_function_call_or_definition(parser_state *state) {
-    ast_node *i = create_node(NODE_IF);
+static ast_node *parse_function_call(parser_state *state) {
+    token *t = next(state); // consume function name
+    ast_node *call = create_node(NODE_CALL);
+    call->data.string = t->ident;
 
-    return i;
+    expect(state, LPAREN); // consume '('
+
+    call->children = create_vector(sizeof(ast_node), 4);
+    while (peek(state, 0)->type != RPAREN) {
+        ast_node *arg = parse_expression(state);
+        if (!arg) {
+            throw_error(state, "invalid function argument");
+            return NULL;
+        }
+        add_element(call->children, &arg);
+
+        if (peek(state, 0)->type == COMMA) {
+            next(state); // consume comma
+        } else {
+            break;
+        }
+    }
+
+    expect(state, RPAREN); // consume ')'
+    return call;
 }
 
 static ast_node *parse_expression(parser_state *state) {
@@ -720,9 +746,14 @@ static ast_node *parse_binary_expression(parser_state *state, int min_precedence
         // consume ')'
         next(state);
     } else if (t->type == IDENTIFIER) {
-        lhs = create_node(NODE_IDENTIFIER);
-        lhs->data.string = t->ident;
-        next(state);
+        // new handling for function calls
+        if (peek(state, 1) && peek(state, 1)->type == LPAREN) {
+            lhs = parse_function_call(state);
+        } else {
+            lhs = create_node(NODE_IDENTIFIER);
+            lhs->data.string = t->ident;
+            next(state);
+        }
     } else if (t->type == INTEGER || t->type == FLOAT) {
         lhs = create_node(NODE_NUMBER);
         if (t->type == INTEGER) {
@@ -824,13 +855,23 @@ static ast_node *parse_statement(parser_state *state) {
     case PRINT:
         return parse_print(state);
     case IDENTIFIER:
-        return parse_assignment(state); // assume it's an assignment if it starts with an identifier
+        if (peek(state, 1) && peek(state,1)->type == EQ) {
+            return parse_assignment(state);
+        } else {
+            return parse_expression(state);
+        }
     case END:
         return NULL; // signal the end of parsing
     case MATCH:
         return NULL;
     case RETURN:
         return parse_return(state);
+    case DEDENT:
+        next(state);
+        return NULL;
+    case INDENT:
+        next(state);
+        return NULL;
     default:
         throw_error(state, "unexpected token in statement");
         return NULL;
