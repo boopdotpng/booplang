@@ -10,11 +10,11 @@ int main(int argc, char *argv[]) {
     }
 
     lexer_result *l = lex(argv[1]);
-    for (int i = 0; i < l->tokens->size; ++i) {
-        print_token(get_element(l->tokens, i));
-    }
-
-    printf("\n\n\n\n");
+    // for (int i = 0; i < l->tokens->size; ++i) {
+    //     print_token(get_element(l->tokens, i));
+    // }
+    // printf("\n\n\n\n");
 
     ast_node *program = gen_ast(l->tokens);
+    pretty_print_ast(program, 0);
 }
