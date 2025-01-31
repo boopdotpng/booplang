@@ -1,13 +1,13 @@
 #pragma once
-#include <stdio.h>
 #include <stdbool.h>
+#include <stdio.h>
 
 // how much of the file to read in at once
 // TODO: change this when the tokenizer is working
 #define MAX_LINE 256
 
 typedef struct {
-    FILE *file;
+  FILE *file;
 } file_streamer;
 
 file_streamer *create_streamer(const char *filename);

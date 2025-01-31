@@ -6,8 +6,8 @@
 typedef struct intern_table intern_table;
 
 typedef struct {
-    char *key;
-    token_type value;
+  char *key;
+  token_type value;
 } intern_result;
 
 /**

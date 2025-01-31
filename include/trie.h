@@ -4,8 +4,8 @@
 typedef struct trie_node trie_node;
 
 typedef struct {
-    token_type type;
-    int length;
+  token_type type;
+  int length;
 } match_result;
 
 /**

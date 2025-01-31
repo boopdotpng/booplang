@@ -2,10 +2,10 @@
 #include <stdlib.h>
 
 typedef struct {
-    void *data;
-    size_t size;
-    size_t capacity;
-    size_t elem_size;
+  void *data;
+  size_t size;
+  size_t capacity;
+  size_t elem_size;
 } vector;
 
 /**
