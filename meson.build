@@ -1,4 +1,4 @@
-project('boop', 'c', version: '0.0.1', default_options: ['warning_level=3', 'c_args=-Wall -Wextra'])
+project('boop', 'c', version: '0.0.1', default_options: ['warning_level=3'])
 
 cc = meson.get_compiler('c')
 
