@@ -3,6 +3,8 @@ I wanted to write a compiler-simple as that. But more than that, i wanted to see
 
 You can take a look at the currently supported syntax at [examples/basic](https://github.com/boopdotpng/booplang/blob/master/examples/basic.boop). It aims to be really straightforward to use and learn.
 
+Long term goal: Compile booplang with booplang.
+
 ## building
 This project uses Meson/ninja. 
 1. `meson setup build`
@@ -10,20 +12,15 @@ This project uses Meson/ninja.
 3. Executable is `./build/boop`.
 
 ## todo list
-- [x] write an open-addressed hashmap with double hashing from scratch
-- [x] finalize a syntax for my language
-- [x] implement string interning
-- [x] write the lexer/tokenizer 
-- [x] remove unnecessary failed malloc checks. never gonna happen
-- [x] error handling / nice error messages
-- [ ] write an abstract syntax tree generator
-- [ ] type checking / minor optimizations
-- [ ] come up with my own IR
-- [ ] ast -> ir
-- [ ] ir -> arm assembly
-- [ ] assemble and link the final executable
-- [ ] print/stdout (link to macos)
-- [ ] standard library
+- [ ] support for command line flags (output token stream or AST)
+- [ ] type checker + basic type inference
+- [ ] design custom IR (intermediate representation)
+- [ ] implement AST -> IR lowering
+- [ ] Implement IR optimizations (dead code, code folding)
+- [ ] IR -> ARM assembly
+- [ ] implement a basic assembler/linker
+- [ ] basic standard library
+- [ ] compiler driver
 
 ## notes 
 - I won't optimize for performance until the language is almost complete. I want to have a working language quicker, as opposed to working on it an extra month just for a 20% speedup. 
