@@ -227,7 +227,9 @@ void pretty_print_ast(ast_node *node, int depth) {
         for (size_t i = 0; i < node->data.function.params->size; i++) {
             ast_node *param = *(ast_node **) get_element(node->data.function.params, i);
             print_indent(depth + 2);
-            printf("%s\n", param->data.string);
+            if (param && param->data.string) {
+                printf("%s\n", param->data.string);
+            }
         }
         break;
 
@@ -315,7 +317,7 @@ void pretty_print_ast(ast_node *node, int depth) {
         break;
 
     case NODE_IDENTIFIER:
-        printf("Identifier: %s\n", node->data.string);
+        printf("Identifier: %s\n", node->data.string ? node->data.string : "(null)");
         break;
 
     case NODE_NUMBER:
@@ -327,7 +329,7 @@ void pretty_print_ast(ast_node *node, int depth) {
         break;
 
     case NODE_STRING:
-        printf("String: \"%s\"\n", node->data.string);
+        printf("String: \"%s\"\n", node->data.string ? node->data.string : "(null)");
         break;
 
     case NODE_PRINT:
@@ -338,15 +340,12 @@ void pretty_print_ast(ast_node *node, int depth) {
         break;
 
     default:
+
         printf("Unknown Node Type: %d\n", node->type);
         break;
     }
 
-    if (node->type != NODE_BINARY_OP &&
-            node->type != NODE_UNARY_OP &&
-            node->type != NODE_ASSIGNMENT &&
-            node->type != NODE_CALL &&
-            node->children->size > 0) {
+    if (node->children && node->children->size > 0) {
         print_indent(depth + 1);
         printf("Body:\n");
         for (size_t i = 0; i < node->children->size; i++) {
@@ -402,7 +401,7 @@ static int expect(parser_state *state, token_type type) {
 }
 
 static ast_node *create_node(node_type type) {
-    ast_node *node = malloc(sizeof(ast_node));
+    ast_node *node = calloc(1, sizeof(ast_node));
     node->type = type;
     node->children = create_vector(sizeof(ast_node *), 8); // everything will have children
     return node;
@@ -413,15 +412,16 @@ static ast_node *parse_return(parser_state *state) {
     // skip return token
     next(state);
 
-    ast_node *ret = parse_expression(state);
-    ret->type = NODE_RETURN;
+    ast_node *node = create_node(NODE_RETURN);
+    node->data.expression = parse_expression(state);
+
     // track returns for an easier during IR generation
     // add_element(state->current_function->data.function.returns, ret);
     // TODO: determine the return type by looking at the expression
 
     // state->current_function->data.function.return_type = FLOAT;
 
-    return ret;
+    return node;
 }
 
 // helper parse functions
@@ -936,7 +936,7 @@ static void parse_block(parser_state *state, vector *children) {
 
         ast_node *stmt = parse_statement(state);
         if (stmt) {
-            add_element(children, stmt);
+            add_element(children, &stmt);
         } else {
             fprintf(stderr, "not a statement in parse_block\n");
         }
