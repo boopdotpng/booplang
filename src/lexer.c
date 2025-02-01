@@ -277,8 +277,8 @@ const char *token_type_str(token_type t) {
 }
 
 void print_token(const token *token) {
-  printf("type=%s, ident=%s, line=%d, col=%d\n", token_type_str(token->type),
-         token->ident ? token->ident : "(null)", token->line, token->col);
+  printf("%s %s @ %d:%d\n", token_type_str(token->type), token->ident ? token->ident : "",
+         token->line, token->col);
 }
 
 // trie initialization
@@ -410,7 +410,7 @@ static void parse_symbol(lexer *lexer, trie_node *root, char *buffer, size_t byt
   tmp[length] = '\0';
 
   match_result res = search_trie(root, tmp);
-  if (res.length == 0 && res.type == -1) {
+  if (res.length == 0) {
     fprintf(stderr, "invalid symbol '%s' at line %d col %d\n", tmp, lexer->line, lexer->col);
     exit(1);
   } else {
