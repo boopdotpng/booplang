@@ -11,5 +11,6 @@ AlignTrailingComments: true
 SpacesBeforeTrailingComments: 2
 AllowShortFunctionsOnASingleLine: Empty
 AlignOperands: true
-AlignConsecutiveAssignments: true
+AlignConsecutiveAssignments: false 
+AlignConsecutiveDeclarations: false
 PointerAlignment: Right
