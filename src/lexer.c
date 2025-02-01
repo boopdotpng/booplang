@@ -46,10 +46,10 @@ static void add_token_null(lexer *lexer, token_type type) {
 static void add_token_len(lexer *lexer, token_type type, const char *ptr, size_t length) {
   intern_result result = intern_string(lexer->interns, ptr, length, type);
 
-  token new_token = {.type  = result.value,  // token_type
-                     .ident = result.key,    // the interned string
-                     .col   = lexer->col,
-                     .line  = lexer->line};
+  token new_token = {.type = result.value,  // token_type
+                     .ident = result.key,   // the interned string
+                     .col = lexer->col,
+                     .line = lexer->line};
 
   add_element(lexer->tokens, &new_token);
 }
@@ -71,16 +71,16 @@ static void add_language_keywords(intern_table *interns) {
   }
 }
 
-static lexer *init_lexer() {
-  lexer *l           = malloc(sizeof(lexer));
-  l->indent_style    = UNSET;
-  l->col             = 0;
-  l->line            = 1;
-  l->tokens          = create_vector(sizeof(token), 128);
+static lexer *init_lexer(void) {
+  lexer *l = malloc(sizeof(lexer));
+  l->indent_style = UNSET;
+  l->col = 0;
+  l->line = 1;
+  l->tokens = create_vector(sizeof(token), 128);
   l->indent_stack[0] = 0;
-  l->current_indent  = 0;
-  l->indent_sp       = 1;
-  l->interns         = create_intern_table(128, 0.7);
+  l->current_indent = 0;
+  l->indent_sp = 1;
+  l->interns = create_intern_table(128, 0.7);
 
   add_language_keywords(l->interns);
   return l;
@@ -111,7 +111,7 @@ static void parse_indent(lexer *lexer, char *buffer) {
   // first indent?
   if (lexer->indent_style == UNSET && ((spaces > 0) != (tabs > 0))) {
     if (spaces > 0) {
-      lexer->indent_style     = SPACES;
+      lexer->indent_style = SPACES;
       lexer->spaces_per_level = spaces;
     } else {
       lexer->indent_style = TABS;
@@ -282,7 +282,7 @@ void print_token(const token *token) {
 }
 
 // trie initialization
-static trie_node *intialize_trie() {
+static trie_node *initialize_trie(void) {
   const symbol_entry symbols[] = {
       {"+", ADD},        {"++", ADD_ONE},    {"+=", ADD_EQ},  {"-", SUB},        {"--", SUB_ONE},
       {"-=", SUB_EQ},    {"*", MUL},         {"*=", MUL_EQ},  {"/", DIV},        {"/=", DIV_EQ},
@@ -299,7 +299,7 @@ static trie_node *intialize_trie() {
   return node;
 }
 
-static bool issymbol(char c) {
+static int issymbol(char c) {
   return c == '%' || c == '+' || c == '-' || c == '*' || c == '/' || c == '=' || c == '!' ||
          c == '<' || c == '>' || c == '&' || c == '|' || c == '^' || c == '(' || c == ')' ||
          c == '[' || c == ']' || c == ',';
@@ -373,7 +373,7 @@ static void parse_string(lexer *lexer, char *buffer, size_t bytes_read) {
 }
 
 static void parse_number(lexer *lexer, char *buffer, size_t bytes_read) {
-  int start     = lexer->col;
+  int start = lexer->col;
   bool is_float = false;
 
   while (lexer->col < (int)bytes_read && buffer[lexer->col] != '\n' &&
@@ -442,8 +442,8 @@ static void parse_identifier(lexer *lexer, char *buffer, size_t bytes_read) {
 
 lexer_result *lex(const char *filename) {
   file_streamer *streamer = create_streamer(filename);
-  lexer *lexer            = init_lexer();
-  trie_node *root         = intialize_trie();
+  lexer *lexer = init_lexer();
+  trie_node *root = initialize_trie();
 
   char buffer[MAX_LINE];
   size_t bytes_read;
@@ -493,6 +493,6 @@ lexer_result *lex(const char *filename) {
 
   static lexer_result lr;
   lr.interns = lexer->interns;
-  lr.tokens  = lexer->tokens;
+  lr.tokens = lexer->tokens;
   return &lr;
 }

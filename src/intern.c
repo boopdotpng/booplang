@@ -40,8 +40,8 @@ static unsigned long hash2(const char *str, int capacity) {
 static int find_slot(intern_table *t, const char *str, int for_insert) {
   unsigned long h1v = hash1(str) % t->capacity;
   unsigned long h2v = hash2(str, t->capacity);
-  int slot          = (int)h1v;
-  int first_tomb    = -1;
+  int slot = (int)h1v;
+  int first_tomb = -1;
 
   for (int i = 0; i < t->capacity; i++) {
     char *k = t->keys[slot];
@@ -64,13 +64,13 @@ static int find_slot(intern_table *t, const char *str, int for_insert) {
 static void resize(intern_table *t);
 
 intern_table *create_intern_table(int capacity, double load_factor) {
-  intern_table *tbl    = calloc(1, sizeof(*tbl));
-  tbl->capacity        = capacity;
-  tbl->load_factor     = load_factor;
-  tbl->size            = 0;
+  intern_table *tbl = calloc(1, sizeof(*tbl));
+  tbl->capacity = capacity;
+  tbl->load_factor = load_factor;
+  tbl->size = 0;
   tbl->tombstone_count = 0;
-  tbl->keys            = calloc(capacity, sizeof(char *));
-  tbl->values          = calloc(capacity, sizeof(token_type));
+  tbl->keys = calloc(capacity, sizeof(char *));
+  tbl->values = calloc(capacity, sizeof(token_type));
   return tbl;
 }
 
@@ -87,7 +87,7 @@ intern_result intern_string(intern_table *t, const char *start, size_t len, toke
   }
 
   // not found; maybe we need to resize
-  double ratio      = (double)t->size / t->capacity;
+  double ratio = (double)t->size / t->capacity;
   double tomb_ratio = (double)t->tombstone_count / t->capacity;
   if (ratio >= t->load_factor || tomb_ratio >= 0.4) {
     resize(t);
@@ -107,8 +107,8 @@ intern_result intern_string(intern_table *t, const char *start, size_t len, toke
   }
 
   // allocate memory and store the interned string
-  char *dup       = strndup(temp, len);  // safer version of strdup for substrings
-  t->keys[slot]   = dup;
+  char *dup = strndup(temp, len);  // safer version of strdup for substrings
+  t->keys[slot] = dup;
   t->values[slot] = value;
   return (intern_result){dup, value};
 }
@@ -139,27 +139,27 @@ void remove_interned_string(intern_table *t, const char *str) {
 
   // free it, mark TOMBSTONE
   free(t->keys[slot]);
-  t->keys[slot]   = TOMBSTONE;
+  t->keys[slot] = TOMBSTONE;
   t->values[slot] = -1;
   t->size--;
   t->tombstone_count++;
 }
 
 static void resize(intern_table *t) {
-  int oldcap            = t->capacity;
-  char **oldkeys        = t->keys;
+  int oldcap = t->capacity;
+  char **oldkeys = t->keys;
   token_type *oldvalues = t->values;
 
   t->capacity *= 2;
-  t->size            = 0;
+  t->size = 0;
   t->tombstone_count = 0;
-  t->keys            = calloc(t->capacity, sizeof(char *));
-  t->values          = calloc(t->capacity, sizeof(token_type));
+  t->keys = calloc(t->capacity, sizeof(char *));
+  t->values = calloc(t->capacity, sizeof(token_type));
 
   if (!t->keys || !t->values) {
     // revert
-    t->keys     = oldkeys;
-    t->values   = oldvalues;
+    t->keys = oldkeys;
+    t->values = oldvalues;
     t->capacity = oldcap;
     fprintf(stderr, "failed to resize intern table\n");
     return;
@@ -179,7 +179,7 @@ static void resize(intern_table *t) {
       if (t->keys[slot] == EMPTY_SLOT) {
         t->size++;
       }
-      t->keys[slot]   = k;
+      t->keys[slot] = k;
       t->values[slot] = oldvalues[i];
     }
   }

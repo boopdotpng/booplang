@@ -25,10 +25,10 @@ static int symbol_to_index(const char *sym) {
   return -1;
 }
 
-trie_node *create_trie_node() {
+trie_node *create_trie_node(void) {
   trie_node *node = malloc(sizeof(trie_node));
   if (node) {
-    node->is_end     = 0;
+    node->is_end = 0;
     node->token_type = -1;
     memset(node->children, 0, sizeof(node->children));
   }
@@ -50,14 +50,14 @@ void insert_symbol(trie_node *root, const char *sym, token_type type) {
     sym++;
   }
 
-  cur->is_end     = 1;
+  cur->is_end = 1;
   cur->token_type = type;
 }
 
 match_result search_trie(trie_node *root, const char *sym) {
-  trie_node *cur       = root;
+  trie_node *cur = root;
   match_result longest = {-1, 0};
-  int pos              = 0;
+  int pos = 0;
 
   // walk through the trie following the input symbol sequence
   while (sym[pos]) {
@@ -70,7 +70,7 @@ match_result search_trie(trie_node *root, const char *sym) {
     pos++;
 
     if (cur->is_end) {
-      longest.type   = cur->token_type;
+      longest.type = cur->token_type;
       longest.length = pos;
     }
   }

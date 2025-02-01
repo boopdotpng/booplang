@@ -106,7 +106,6 @@ struct ast_node {
   int col;
 };
 
-static int is_op(token *t);
 static int is_unary_op(token *t);
 static int is_binary_op(token *t);
 static void throw_error(parser_state *state, const char *msg);
@@ -124,7 +123,6 @@ static ast_node *parse_while(parser_state *state);
 static ast_node *parse_for(parser_state *state);
 static ast_node *parse_assignment(parser_state *state);
 static ast_node *parse_print(parser_state *state);
-static ast_node *parse_function_call_or_definition(parser_state *state);
 static ast_node *parse_expression(parser_state *state);
 static ast_node *parse_binary_expression(parser_state *state, int min_precedence);
 
@@ -155,11 +153,6 @@ static int precedence(token_type op);
 // static symbol *resolve_variable(parser_state *state, const char *name) {
 //     // search from innermost scope outward
 // }
-
-// check if its an operator
-static int is_op(token *t) {
-  return is_binary_op(t) || is_unary_op(t);
-}
 
 // check if an operator is unary
 static int is_unary_op(token *t) {
@@ -359,9 +352,9 @@ void pretty_print_ast(ast_node *node, int depth) {
 
 // unconditional move forward
 static token *next(parser_state *state) {
-  if (state->current + 1 >= state->tokens->size)
+  if ((size_t)state->current + 1 >= state->tokens->size)
     return NULL;
-  token *n   = get_element(state->tokens, ++state->current);  // move forward and get the next token
+  token *n = get_element(state->tokens, ++state->current);  // move forward and get the next token
   state->col = n->col;
   state->line = n->line;
   return n;
@@ -369,7 +362,7 @@ static token *next(parser_state *state) {
 
 // consume n-ahead without consuming
 static token *peek(parser_state *state, int ahead) {
-  if (state->current + ahead >= state->tokens->size) {
+  if ((size_t)state->current + ahead >= state->tokens->size) {
     return NULL;
   }
 
@@ -382,7 +375,7 @@ static int accept(parser_state *state, token_type type) {
   if (current_token->type == type) {
     state->current++;
     state->line = current_token->line;
-    state->col  = current_token->col;
+    state->col = current_token->col;
     return 1;
   }
   return 0;
@@ -394,7 +387,7 @@ static int expect(parser_state *state, token_type type) {
   if (t->type == type) {
     state->current++;
     state->line = t->line;
-    state->col  = t->col;
+    state->col = t->col;
     return 1;
   } else {
     throw_error(state, "Unexpected token type.");
@@ -404,7 +397,7 @@ static int expect(parser_state *state, token_type type) {
 
 static ast_node *create_node(node_type type) {
   ast_node *node = calloc(1, sizeof(ast_node));
-  node->type     = type;
+  node->type = type;
   node->children = create_vector(sizeof(ast_node *), 8);  // everything will have children
   return node;
 }
@@ -414,7 +407,7 @@ static ast_node *parse_return(parser_state *state) {
   // skip return token
   next(state);
 
-  ast_node *node        = create_node(NODE_RETURN);
+  ast_node *node = create_node(NODE_RETURN);
   node->data.expression = parse_expression(state);
 
   // track returns for an easier during IR generation
@@ -428,7 +421,7 @@ static ast_node *parse_return(parser_state *state) {
 
 // helper parse functions
 static ast_node *parse_function(parser_state *state) {
-  token *t       = next(state);  // skip fn
+  token *t = next(state);  // skip fn
   ast_node *func = create_node(NODE_FUNCTION);
 
   if (state->current_function) {
@@ -455,14 +448,14 @@ static ast_node *parse_function(parser_state *state) {
   }
 
   // parse parameters as comma separated list of identifiers
-  t                = next(state);
+  t = next(state);
   int expect_comma = 0;
 
   func->data.function.params = create_vector(sizeof(ast_node *), 4);
 
   while (t->type == IDENTIFIER || (t->type == COMMA && expect_comma)) {
     if (t->type == IDENTIFIER) {
-      ast_node *param    = create_node(NODE_IDENTIFIER);
+      ast_node *param = create_node(NODE_IDENTIFIER);
       param->data.string = t->ident;
       add_element(func->data.function.params, &param);
       expect_comma = 1;
@@ -526,7 +519,7 @@ static ast_node *parse_if(parser_state *state) {
     parse_block(state, branch->children);  // parse the elif/else block
 
     last_branch->data.control.else_body = branch;  // chain elif/else blocks
-    last_branch                         = branch;  // update tracker for next elif/else
+    last_branch = branch;                          // update tracker for next elif/else
   }
 
   return i;
@@ -534,7 +527,7 @@ static ast_node *parse_if(parser_state *state) {
 
 static ast_node *parse_while(parser_state *state) {
   ast_node *w = create_node(NODE_WHILE);
-  token *t    = next(state);
+  next(state);
 
   w->data.control.condition = parse_expression(state);
 
@@ -554,7 +547,7 @@ static ast_node *parse_for(parser_state *state) {
     return NULL;
   }
   // create initializer node for the iterator
-  for_node->data.control.initializer                           = create_node(NODE_ASSIGNMENT);
+  for_node->data.control.initializer = create_node(NODE_ASSIGNMENT);
   for_node->data.control.initializer->data.assignment.var_name = t->ident;
 
   // expect `from`
@@ -565,13 +558,13 @@ static ast_node *parse_for(parser_state *state) {
 
   // parse start value (x)
   ast_node *start_value = NULL;
-  int start_is_var      = 0;
+  int start_is_var = 0;
 
   t = next(state);
   if (t->type == IDENTIFIER) {
-    start_value              = create_node(NODE_IDENTIFIER);
+    start_value = create_node(NODE_IDENTIFIER);
     start_value->data.string = t->ident;
-    start_is_var             = 1;
+    start_is_var = 1;
   } else if (t->type == INTEGER || t->type == FLOAT) {
     start_value = create_node(NODE_NUMBER);
     if (t->type == FLOAT) {
@@ -593,13 +586,13 @@ static ast_node *parse_for(parser_state *state) {
 
   // parse end value (y)
   ast_node *end_value = NULL;
-  int end_is_var      = 0;
+  int end_is_var = 0;
 
   t = next(state);
   if (t->type == IDENTIFIER) {
-    end_value              = create_node(NODE_IDENTIFIER);
+    end_value = create_node(NODE_IDENTIFIER);
     end_value->data.string = t->ident;
-    end_is_var             = 1;
+    end_is_var = 1;
   } else if (t->type == INTEGER || t->type == FLOAT) {
     end_value = create_node(NODE_NUMBER);
     if (t->type == FLOAT) {
@@ -620,7 +613,7 @@ static ast_node *parse_for(parser_state *state) {
   if (accept(state, BY)) {
     t = peek(state, 0);
     if (t->type == IDENTIFIER) {
-      step_value              = create_node(NODE_IDENTIFIER);
+      step_value = create_node(NODE_IDENTIFIER);
       step_value->data.string = t->ident;
     } else if (t->type == INTEGER || t->type == FLOAT) {
       step_value = create_node(NODE_NUMBER);
@@ -658,7 +651,7 @@ static ast_node *parse_assignment(parser_state *state) {
     throw_error(state, "Expected variable name in assignment.");
     return NULL;
   }
-  ast_node *node                 = create_node(NODE_ASSIGNMENT);
+  ast_node *node = create_node(NODE_ASSIGNMENT);
   node->data.assignment.var_name = t->ident;
 
   if (!expect(state, EQ)) {
@@ -693,8 +686,8 @@ static ast_node *parse_print(parser_state *state) {
 }
 
 static ast_node *parse_function_call(parser_state *state) {
-  token *t          = next(state);  // consume function name
-  ast_node *call    = create_node(NODE_CALL);
+  token *t = next(state);  // consume function name
+  ast_node *call = create_node(NODE_CALL);
   call->data.string = t->ident;
 
   if (!accept(state, LPAREN)) {  // accept() checks current token
@@ -750,8 +743,8 @@ static ast_node *parse_binary_expression(parser_state *state, int min_precedence
       throw_error(state, "invalid operand for unary op.");
       return NULL;
     }
-    lhs                   = create_node(NODE_UNARY_OP);
-    lhs->data.binary.op   = t->type;
+    lhs = create_node(NODE_UNARY_OP);
+    lhs->data.binary.op = t->type;
     lhs->data.binary.left = operand;
   } else if (t->type == LPAREN) {
     // handle parentheses
@@ -772,7 +765,7 @@ static ast_node *parse_binary_expression(parser_state *state, int min_precedence
     if (peek(state, 1) && peek(state, 1)->type == LPAREN) {
       lhs = parse_function_call(state);
     } else {
-      lhs              = create_node(NODE_IDENTIFIER);
+      lhs = create_node(NODE_IDENTIFIER);
       lhs->data.string = t->ident;
       next(state);
     }
@@ -785,7 +778,7 @@ static ast_node *parse_binary_expression(parser_state *state, int min_precedence
     }
     next(state);
   } else if (t->type == STRING) {
-    lhs              = create_node(NODE_STRING);
+    lhs = create_node(NODE_STRING);
     lhs->data.string = t->ident;
     next(state);
   } else {
@@ -821,11 +814,11 @@ static ast_node *parse_binary_expression(parser_state *state, int min_precedence
       }
     }
 
-    ast_node *bin_node          = create_node(NODE_BINARY_OP);
-    bin_node->data.binary.left  = lhs;
+    ast_node *bin_node = create_node(NODE_BINARY_OP);
+    bin_node->data.binary.left = lhs;
     bin_node->data.binary.right = rhs;
-    bin_node->data.binary.op    = op_token->type;
-    lhs                         = bin_node;
+    bin_node->data.binary.op = op_token->type;
+    lhs = bin_node;
   }
 
   return lhs;
@@ -952,13 +945,13 @@ static void parse_block(parser_state *state, vector *children) {
 
 ast_node *gen_ast(vector *tokens) {
   parser_state state = {
-      .current          = 0,
-      .tokens           = tokens,
-      .has_main         = 0,
-      .errors           = create_vector(sizeof(char *), 4),
+      .current = 0,
+      .tokens = tokens,
+      .has_main = 0,
+      .errors = create_vector(sizeof(char *), 4),
       .current_function = NULL,
-      .line             = 0,
-      .col              = 0,
+      .line = 0,
+      .col = 0,
   };
 
   ast_node *program = create_node(NODE_PROGRAM);

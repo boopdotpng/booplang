@@ -13,7 +13,7 @@ typedef struct {
  *
  * @return Pointer to the created node, or NULL on failure.
  */
-trie_node *create_trie_node();
+trie_node *create_trie_node(void);
 
 /**
  * @brief Inserts a symbol and its token type into the trie.

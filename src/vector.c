@@ -3,10 +3,10 @@
 #include <string.h>
 
 vector *create_vector(size_t elem_size, int initial_size) {
-  vector *arr    = malloc(sizeof(vector));
-  arr->data      = malloc(elem_size * initial_size);
-  arr->size      = 0;
-  arr->capacity  = initial_size;
+  vector *arr = malloc(sizeof(vector));
+  arr->data = malloc(elem_size * initial_size);
+  arr->size = 0;
+  arr->capacity = initial_size;
   arr->elem_size = elem_size;
 
   return arr;

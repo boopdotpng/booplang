@@ -5,8 +5,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#define TOKENS_PER_LINE 3
-
 typedef struct {
   int emit_ast;
   int emit_tokens;
@@ -43,6 +41,8 @@ void parse_arguments(int argc, char *argv[], compiler_options *options) {
 }
 
 void print_token_stream(lexer_result *l) {
+  if (!l || !l->tokens)
+    return;
   printf("\n=== token stream ===\n");
   for (size_t i = 0; i < l->tokens->size; ++i) {
     token *t = (token *)get_element(l->tokens, i);
@@ -51,6 +51,8 @@ void print_token_stream(lexer_result *l) {
 }
 
 void print_ast(ast_node *program) {
+  if (!program)
+    return;
   printf("=== abstract syntax tree ===\n");
   pretty_print_ast(program, 0);
   printf("\n");
@@ -70,10 +72,6 @@ int main(int argc, char *argv[]) {
     print_token_stream(l);
 
   ast_node *program = gen_ast(l->tokens);
-  if (!program) {
-    fprintf(stderr, "error: AST generation failed.\n");
-    return EXIT_FAILURE;
-  }
 
   if (options.emit_ast)
     print_ast(program);
