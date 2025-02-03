@@ -155,13 +155,13 @@ void pretty_print_ast(ast_node *node, int depth) {
 
   switch (node->type) {
   case NODE_PROGRAM:
-    printf("Program\n");
+    printf("program\n");
     break;
 
   case NODE_FUNCTION:
-    printf("Function: %s\n", node->data.function.name);
+    printf("function: %s\n", node->data.function.name);
     print_indent(depth + 1);
-    printf("Parameters (%zu):\n", node->data.function.params->size);
+    printf("parameters (%zu):\n", node->data.function.params->size);
     for (size_t i = 0; i < node->data.function.params->size; i++) {
       ast_node *param = *(ast_node **)get_element(node->data.function.params, i);
       print_indent(depth + 2);
@@ -172,72 +172,72 @@ void pretty_print_ast(ast_node *node, int depth) {
     break;
 
   case NODE_IF:
-    printf("If\n");
+    printf("if\n");
     print_indent(depth + 1);
-    printf("Condition:\n");
+    printf("condition:\n");
     pretty_print_ast(node->data.control.condition, depth + 2);
     if (node->data.control.else_body) {
       print_indent(depth + 1);
-      printf("Else:\n");
+      printf("else:\n");
       pretty_print_ast(node->data.control.else_body, depth + 2);
     }
     break;
 
   case NODE_WHILE:
-    printf("While\n");
+    printf("while\n");
     print_indent(depth + 1);
-    printf("Condition:\n");
+    printf("condition:\n");
     pretty_print_ast(node->data.control.condition, depth + 2);
     break;
 
   case NODE_FOR:
-    printf("For\n");
+    printf("for\n");
     if (node->data.control.initializer) {
       print_indent(depth + 1);
-      printf("Initializer:\n");
+      printf("initializer:\n");
       pretty_print_ast(node->data.control.initializer, depth + 2);
     }
     if (node->data.control.condition) {
       print_indent(depth + 1);
-      printf("End Condition:\n");
+      printf("end condition:\n");
       pretty_print_ast(node->data.control.condition, depth + 2);
     }
     if (node->data.control.step) {
       print_indent(depth + 1);
-      printf("Step:\n");
+      printf("step:\n");
       pretty_print_ast(node->data.control.step, depth + 2);
     }
     break;
 
   case NODE_ASSIGNMENT:
-    printf("Assignment: %s =\n", node->data.assignment.var_name);
+    printf("assignment: %s =\n", node->data.assignment.var_name);
     print_indent(depth + 1);
-    printf("Value:\n");
+    printf("value:\n");
     pretty_print_ast(node->data.assignment.value, depth + 2);
     break;
 
   case NODE_BINARY_OP:
-    printf("Binary Operation: %s\n", token_type_str(node->data.binary.op));
+    printf("binary operation: %s\n", token_type_str(node->data.binary.op));
     print_indent(depth + 1);
-    printf("Left:\n");
+    printf("left:\n");
     pretty_print_ast(node->data.binary.left, depth + 2);
     print_indent(depth + 1);
-    printf("Right:\n");
+    printf("right:\n");
     pretty_print_ast(node->data.binary.right, depth + 2);
     break;
 
   case NODE_UNARY_OP:
-    printf("Unary Operation: %s\n", token_type_str(node->data.binary.op));
+    printf("unary operation: %s\n", token_type_str(node->data.binary.op));
     print_indent(depth + 1);
-    printf("Operand:\n");
+    printf("operand:\n");
     pretty_print_ast(node->data.binary.left, depth + 2);
     break;
 
   case NODE_CALL:
-    printf("Function Call: %s\n", node->data.string);
+    printf("function call: %s\n", node->data.string);
     if (node->children->size > 0) {
       print_indent(depth + 1);
-      printf("Arguments:\n");
+      printf("arguments:\n");
       for (size_t i = 0; i < node->children->size; i++) {
         ast_node *arg = *(ast_node **)get_element(node->children, i);
         pretty_print_ast(arg, depth + 2);
@@ -246,46 +246,45 @@ void pretty_print_ast(ast_node *node, int depth) {
     break;
 
   case NODE_RETURN:
-    printf("Return\n");
+    printf("return\n");
     if (node->data.expression) {
       print_indent(depth + 1);
-      printf("Value:\n");
+      printf("value:\n");
       pretty_print_ast(node->data.expression, depth + 2);
     }
     break;
 
   case NODE_IDENTIFIER:
-    printf("Identifier: %s\n", node->data.string ? node->data.string : "(null)");
+    printf("identifier: %s\n", node->data.string ? node->data.string : "(null)");
     break;
 
   case NODE_NUMBER:
     if (node->data.number.num_type == TYPE_INT) {
-      printf("Number: %ld\n", (long)node->data.number.value);
+      printf("number: %ld\n", (long)node->data.number.value);
     } else {
-      printf("Number: %f\n", node->data.number.value);
+      printf("number: %f\n", node->data.number.value);
     }
     break;
 
   case NODE_STRING:
-    printf("String: \"%s\"\n", node->data.string ? node->data.string : "(null)");
+    printf("string: \"%s\"\n", node->data.string ? node->data.string : "(null)");
     break;
 
   case NODE_PRINT:
-    printf("Print\n");
+    printf("print\n");
     print_indent(depth + 1);
-    printf("Expression:\n");
+    printf("expression:\n");
     pretty_print_ast(node->data.expression, depth + 2);
     break;
 
   default:
-
-    printf("Unknown Node Type: %d\n", node->type);
+    printf("unknown node type: %d\n", node->type);
     break;
   }
 
   if (node->children && node->children->size > 0) {
     print_indent(depth + 1);
-    printf("Body:\n");
+    printf("body:\n");
     for (size_t i = 0; i < node->children->size; i++) {
       ast_node *child = *(ast_node **)get_element(node->children, i);
       pretty_print_ast(child, depth + 2);
