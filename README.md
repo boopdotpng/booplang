@@ -12,15 +12,19 @@ This project uses Meson/ninja.
 3. Executable is `./build/boop`.
 
 ## todo list
-- [ ] support for command line flags (output token stream or AST)
-- [ ] type checker + basic type inference
-- [ ] design custom IR (intermediate representation)
-- [ ] implement AST -> IR lowering
-- [ ] Implement IR optimizations (dead code, code folding)
-- [ ] IR -> ARM assembly
+- [x] support for command line flags (output token stream or ast)
+- [x] working ast generation
+- [ ] design custom ir (intermediate representation)
+- [ ] implement ast -> ir lowering
+- [ ] ir -> arm assembly
 - [ ] implement a basic assembler/linker
 - [ ] basic standard library
 - [ ] compiler driver
+
+these would be nice to have:
+- [ ] type checker + basic type inference
+- [ ] fancy error messages
+- [ ] implement ir optimizations (dead code, code folding)
 
 ## notes 
 - I won't optimize for performance until the language is almost complete. I want to have a working language quicker, as opposed to working on it an extra month just for a 20% speedup. 
