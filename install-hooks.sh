@@ -7,14 +7,10 @@ mkdir -p "$HOOKS_DIR"
 
 cat > "$HOOK_FILE" << 'EOF'
 #!/bin/sh
-echo "Running clang-format on staged files..."
+echo "Running clang-format on all source files..."
 
 if command -v clang-format >/dev/null 2>&1; then
-    # Get staged .c and .h files and format them
-    git diff --name-only --cached -- '*.c' '*.h' | xargs -r clang-format -i
-    
-    # Re-add formatted files to staging
-    git diff --name-only --cached -- '*.c' '*.h' | xargs -r git add
+    find src/ include/ -name '*.c' -o -name '*.h' | xargs clang-format -i
 else
     echo "clang-format not found, skipping formatting."
 fi
