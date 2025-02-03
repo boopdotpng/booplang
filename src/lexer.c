@@ -7,15 +7,11 @@
 #include <stdlib.h>
 #include <string.h>
 
-// a file can be indented using spaces or tabs, but it must be consistent
-// spaces are just set using a number (2 for two spaces, etc)
 #define TABS 1
 #define SPACES 2
 #define UNSET 0
 
-// max number of nested indents
 #define MAX_INDENT_LEVEL 32
-// max length for strings
 #define MAX_STRING_LEN 256
 
 typedef struct {
@@ -24,49 +20,40 @@ typedef struct {
 } symbol_entry;
 
 struct lexer {
-  int indent_style;      // space or tab
-  int spaces_per_level;  // for space-based indentation
+  int indent_style;
+  int spaces_per_level;
   int line;
   int col;
-  int current_indent;  // current indent level
+  int current_indent;
   int indent_stack[MAX_INDENT_LEVEL];
-  int indent_sp;  // stack pointer for indent_stack
+  int indent_sp;
   vector *tokens;
-  intern_table *interns;  // string intern table
+  intern_table *interns;
 };
 
-// tokens that don't require an identifier
 static void add_token_null(lexer *lexer, token_type type) {
   token new_token = {.type = type, .ident = NULL, .col = lexer->col, .line = lexer->line};
 
   add_element(lexer->tokens, &new_token);
 }
 
-// add tokens with an identifier
 static void add_token_len(lexer *lexer, token_type type, const char *ptr, size_t length) {
   intern_result result = intern_string(lexer->interns, ptr, length, type);
 
-  token new_token = {.type = result.value,  // token_type
-                     .ident = result.key,   // the interned string
-                     .col = lexer->col,
-                     .line = lexer->line};
+  token new_token = {
+      .type = result.value, .ident = result.key, .col = lexer->col, .line = lexer->line};
 
   add_element(lexer->tokens, &new_token);
 }
 
-// add all language keywords to the intern table
 static void add_language_keywords(intern_table *interns) {
-  // list of reserved language keywords
   const char *keywords[] = {"fn",   "for",    "while", "if",    "else",  "elif",  "return", "by",
                             "from", "import", "to",    "print", "match", "false", "true"};
 
-  // corresponding token types
   const token_type types[] = {FN,   FOR,    WHILE, IF,    ELSE,  ELSE_IF, RETURN, BY,
                               FROM, IMPORT, TO,    PRINT, MATCH, FALSE,   TRUE};
 
-  size_t keyword_count = sizeof(keywords) / sizeof(keywords[0]);
-
-  for (size_t i = 0; i < keyword_count; i++) {
+  for (size_t i = 0; i < sizeof(keywords) / sizeof(keywords[0]); i++) {
     intern_string(interns, keywords[i], strlen(keywords[i]), types[i]);
   }
 }
@@ -97,18 +84,15 @@ static void parse_indent(lexer *lexer, char *buffer) {
     lexer->col++;
   }
 
-  // comment detection
   if (buffer[lexer->col] == ';') {
     while (buffer[lexer->col] != '\n' && buffer[lexer->col] != '\0')
       lexer->col++;
     return;
   }
 
-  // skip empty lines
   if (buffer[lexer->col] == '\n' || buffer[lexer->col] == '\0')
     return;
 
-  // first indent?
   if (lexer->indent_style == UNSET && ((spaces > 0) != (tabs > 0))) {
     if (spaces > 0) {
       lexer->indent_style = SPACES;
@@ -118,14 +102,12 @@ static void parse_indent(lexer *lexer, char *buffer) {
     }
   }
 
-  // check for mixed tab and space usage
   if (spaces > 0 && tabs > 0) {
     fprintf(stderr, "use of tabs and spaces at %d:%d, which is forbidden.\n", lexer->line,
             lexer->col);
     exit(1);
   }
 
-  // ensure consistent spacing
   if (lexer->indent_style == SPACES) {
     if (spaces % lexer->spaces_per_level != 0) {
       fprintf(stderr, "inconsistent space indentation near %d:%d. expected multiple of %d.\n",
@@ -137,7 +119,6 @@ static void parse_indent(lexer *lexer, char *buffer) {
     lexer->current_indent = tabs;
   }
 
-  // handle indent
   if (lexer->current_indent > lexer->indent_stack[lexer->indent_sp - 1]) {
     if (lexer->current_indent != lexer->indent_stack[lexer->indent_sp - 1] + 1) {
       fprintf(stderr, "invalid indentation increase at line %d\n", lexer->line);
@@ -152,7 +133,6 @@ static void parse_indent(lexer *lexer, char *buffer) {
 
     add_token_null(lexer, INDENT);
   } else {
-    // handle dedent
     while (lexer->indent_sp > 1 &&
            lexer->indent_stack[lexer->indent_sp - 1] > lexer->current_indent) {
       lexer->indent_sp--;
@@ -168,7 +148,6 @@ static void parse_indent(lexer *lexer, char *buffer) {
 
 const char *token_type_str(token_type t) {
   switch (t) {
-  // keywords
   case FN:
     return "fn";
   case FOR:
@@ -205,6 +184,7 @@ const char *token_type_str(token_type t) {
     return "false";
   case TRUE:
     return "true";
+
   case MUL:
     return "mul";
   case DIV:
@@ -232,7 +212,7 @@ const char *token_type_str(token_type t) {
   case DIV_EQ:
     return "div_eq";
   case INTDIV_EQ:
-    return "indiv_eq";
+    return "intdiv_eq";
   case GT:
     return "gt";
   case LT:
@@ -245,6 +225,7 @@ const char *token_type_str(token_type t) {
     return "carrot";
   case CARROT_EQ:
     return "carrot_eq";
+
   case IDENTIFIER:
     return "identifier";
   case STRING:
@@ -253,6 +234,7 @@ const char *token_type_str(token_type t) {
     return "number";
   case FLOAT:
     return "float";
+
   case COMMA:
     return "comma";
   case LPAREN:
@@ -263,6 +245,7 @@ const char *token_type_str(token_type t) {
     return "lsqparen";
   case RSQPAREN:
     return "rsqparen";
+
   case INDENT:
     return "indent";
   case DEDENT:
@@ -271,6 +254,7 @@ const char *token_type_str(token_type t) {
     return "newline";
   case END:
     return "end";
+
   default:
     return "unknown_token";
   }
@@ -281,7 +265,6 @@ void print_token(const token *token) {
          token->line, token->col);
 }
 
-// trie initialization
 static trie_node *initialize_trie(void) {
   const symbol_entry symbols[] = {
       {"+", ADD},        {"++", ADD_ONE},    {"+=", ADD_EQ},  {"-", SUB},        {"--", SUB_ONE},
@@ -322,18 +305,13 @@ static char handle_escape_sequence(char c) {
 }
 
 static void parse_string(lexer *lexer, char *buffer, size_t bytes_read) {
-  // skip initial "
   lexer->col++;
-
-  // TODO: dynamically allocate this or print a useful error
-  // when the buffer overflows
   char string_buffer[MAX_STRING_LEN];
   int sb_index = 0;
 
   while (lexer->col < (int)bytes_read) {
     char c = buffer[lexer->col];
     if (c == '\\') {
-      // escape
       lexer->col++;
       if (lexer->col >= (int)bytes_read) {
         fprintf(stderr, "unterminated string at line %d\n", lexer->line);
@@ -347,11 +325,9 @@ static void parse_string(lexer *lexer, char *buffer, size_t bytes_read) {
         exit(1);
       }
     } else if (c == '"') {
-      // end of string
       lexer->col++;
       break;
     } else {
-      // normal char
       if (sb_index < MAX_STRING_LEN - 1)
         string_buffer[sb_index++] = c;
       else {
@@ -368,7 +344,6 @@ static void parse_string(lexer *lexer, char *buffer, size_t bytes_read) {
   }
 
   string_buffer[sb_index] = '\0';
-  // add token with full string
   add_token_len(lexer, STRING, string_buffer, sb_index);
 }
 
@@ -393,7 +368,6 @@ static void parse_number(lexer *lexer, char *buffer, size_t bytes_read) {
   add_token_len(lexer, is_float ? FLOAT : INTEGER, buffer + start, length);
 }
 
-// ++, --, etc
 static void parse_symbol(lexer *lexer, trie_node *root, char *buffer, size_t bytes_read) {
   int start = lexer->col;
   while (lexer->col < (int)bytes_read && issymbol(buffer[lexer->col])) {
@@ -418,7 +392,6 @@ static void parse_symbol(lexer *lexer, trie_node *root, char *buffer, size_t byt
   }
 }
 
-// variable names, function names, and reserved language keywords
 static void parse_identifier(lexer *lexer, char *buffer, size_t bytes_read) {
   int start = lexer->col;
   while (
@@ -428,9 +401,6 @@ static void parse_identifier(lexer *lexer, char *buffer, size_t bytes_read) {
   }
   int length = lexer->col - start;
 
-  // search intern table to check if ident is reserved
-  // the value is only updated if the key does not exist. anything that doesn't exist in the table
-  // has to be a user created ident
   intern_result res = intern_string(lexer->interns, buffer + start, length, IDENTIFIER);
 
   if (res.value == IDENTIFIER) {
@@ -450,10 +420,8 @@ lexer_result *lex(const char *filename) {
 
   while ((bytes_read = stream_line(streamer, buffer)) > 0) {
     lexer->col = 0;
-    // handle indentation per line
     parse_indent(lexer, buffer);
 
-    // ignore empty lines after indentation
     if (buffer[lexer->col] == '\n' || buffer[lexer->col] == '\0') {
       lexer->line++;
       continue;
@@ -461,8 +429,8 @@ lexer_result *lex(const char *filename) {
 
     while (lexer->col < (int)bytes_read) {
       char c = buffer[lexer->col];
+
       if (c == ';') {
-        // comment => skip rest of line
         break;
       } else if (isspace(c)) {
         lexer->col++;
@@ -480,12 +448,10 @@ lexer_result *lex(const char *filename) {
       }
     }
 
-    // end of line => add newline token
     add_token_null(lexer, NEWLINE);
     lexer->line++;
   }
 
-  // add an END token
   add_token_null(lexer, END);
 
   destroy_streamer(streamer);

@@ -4,8 +4,8 @@ cc = meson.get_compiler('c')
 
 # list source files
 src_files = files(
-    'src/ast.c', 'src/codegen.c', 'src/intern.c', 'src/ir.c', 
-    'src/lexer.c', 'src/main.c', 'src/parser.c', 'src/trie.c', 
+    'src/ast.c', 'src/intern.c', 'src/ir.c', 
+    'src/lexer.c', 'src/main.c', 'src/trie.c', 
     'src/utils.c', 'src/vector.c'
 )
 

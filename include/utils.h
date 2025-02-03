@@ -2,8 +2,6 @@
 #include <stdbool.h>
 #include <stdio.h>
 
-// how much of the file to read in at once
-// TODO: change this when the tokenizer is working
 #define MAX_LINE 256
 
 typedef struct {

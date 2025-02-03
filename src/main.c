@@ -17,11 +17,11 @@ void print_usage(const char *prog_name) {
 }
 
 void parse_arguments(int argc, char *argv[], compiler_options *options) {
-  int opt;
   struct option long_options[] = {{"emit-ast", no_argument, NULL, 'a'},
                                   {"emit-tokens", no_argument, NULL, 't'},
                                   {NULL, 0, NULL, 0}};
 
+  int opt;
   while ((opt = getopt_long(argc, argv, "at", long_options, NULL)) != -1) {
     switch (opt) {
     case 'a':
@@ -37,29 +37,30 @@ void parse_arguments(int argc, char *argv[], compiler_options *options) {
 
   if (optind >= argc)
     print_usage(argv[0]);
+
   options->filename = argv[optind];
 }
 
 void print_token_stream(lexer_result *l) {
   if (!l || !l->tokens)
     return;
+
   printf("\n=== token stream ===\n");
-  for (size_t i = 0; i < l->tokens->size; ++i) {
-    token *t = (token *)get_element(l->tokens, i);
-    print_token(t);
-  }
+  for (size_t i = 0; i < l->tokens->size; ++i)
+    print_token((token *)get_element(l->tokens, i));
 }
 
 void print_ast(ast_node *program) {
   if (!program)
     return;
+
   printf("=== abstract syntax tree ===\n");
   pretty_print_ast(program, 0);
   printf("\n");
 }
 
 int main(int argc, char *argv[]) {
-  compiler_options options = {0, 0, NULL};
+  compiler_options options = {0};
   parse_arguments(argc, argv, &options);
 
   lexer_result *l = lex(options.filename);
@@ -72,7 +73,6 @@ int main(int argc, char *argv[]) {
     print_token_stream(l);
 
   ast_node *program = gen_ast(l->tokens);
-
   if (options.emit_ast)
     print_ast(program);
 

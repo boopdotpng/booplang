@@ -1,6 +1,4 @@
-// had to be separated to avoid circular dependencies
 #pragma once
-
 typedef enum {
   // keywords
   FN,
@@ -17,7 +15,7 @@ typedef enum {
   PRINT,
   MATCH,
   FALSE,
-  TRUE,  // since print doesn't require parenthesis
+  TRUE,
 
   // operators
   NOT,
@@ -30,7 +28,7 @@ typedef enum {
   ADD,
   SUB,
   ADD_ONE,
-  SUB_ONE,  // ++, --
+  SUB_ONE,
   EQ,
   COMP_EQ,
   ADD_EQ,
