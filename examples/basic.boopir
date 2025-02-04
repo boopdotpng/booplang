@@ -1,0 +1,59 @@
+function factorial(r0)    ; r0 = number
+L1:
+    cmp r0, 0
+    jeq r0, L2
+    jmp L3
+
+L2:                       ; zero_case
+    mov r1, 1
+    ret r1
+
+L3:                       ; nonzero_case
+    sub r1, r0, 1       ; r1 = r0 - 1
+    call factorial, r1  ; call factorial(r1), return value in r2
+    mul r3, r0, r2      ; r3 = r0 * r2
+    ret r3
+
+end 
+
+function main(r0, r1)    ; r0 = argc, r1 = argv
+L1:
+    mov r2, 5
+    call factorial, r2  ; call factorial(5), result in r3
+    print r3
+
+    mov r4, 1           ; i = 1
+    jmp L2
+
+L2:                      ; while_test
+    cmp r4, 10
+    jlt r4, L3
+    jmp L4
+
+L3:                      ; while_body
+    print r4
+    add r4, r4, 1       ; i++
+    jmp L2
+
+L4:                      ; while_end
+
+    mov r5, 1           ; i = 1
+    jmp L5
+
+L5:                      ; for_test
+    cmp r5, 6
+    jle r5, L6
+    jmp L7
+
+L6:                      ; for_body
+    add r6, r5, 1       ; temp = i + 1
+    print r6
+    add r5, r5, 0.5     ; i += 0.5
+    jmp L5
+
+L7:                      ; for_end
+
+    print "hello, world"
+    ret 0
+
+end 
