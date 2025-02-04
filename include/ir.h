@@ -1,4 +1,6 @@
 #pragma once
 
+typedef struct ir_node ir_node;
+
 void pretty_print_ir();
-void gen_ir();
+ir_node *gen_ir();
