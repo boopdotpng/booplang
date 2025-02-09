@@ -1,7 +1,7 @@
 function factorial(r0: i32) -> i32
 L1:
     cmp r0, 0
-    jeq r0, L2
+    beq r0, L2
     jmp L3
 
 L2:
