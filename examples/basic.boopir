@@ -1,26 +1,54 @@
-function factorial(r0: i32) -> i32
+function factorial(number: i32) -> i32
 L1:
-    cmp r0, 0
-    beq r0, L2
+    cmp number, 0
+    beq number, L2
     jmp L3
 
 L2:
-    mov r1: i32, 1
-    ret r1
+    r1_1: i32 = 1
+    ret r1_1
 
 L3:
-    sub r1: i32, r0, 1
-    call factorial, r1 -> r2
-    mul r3: i32, r0, r2
-    ret r3
+    r1_2: i32 = number - 1
+    call factorial, r1_2 -> r2
+    r3: i32 = number * r2
+    jmp L4
+
+L4:
+    r_ret: i32 = φ(r1_1, r3)
+    ret r_ret
 end function
 
-function main(r0: i32, r1: ptr) -> void
+function main(argc: i32, argv: ptr) -> void
 L1:
-    mov r2: i32, 5
-    call factorial, r2 -> r3
-    print r3
+    num: i32 = 5
+    call factorial, num -> fact
+    print fact
 
-    mov r4: ptr, alloc_str "hello"
+    i_0: i32 = 1
+    jmp L2
+
+L2:
+    cmp i_0, 10
+    bge i_0, L3
+    print i_0
+    i_1: i32 = i_0 + 1
+    jmp L2
+
+L3:
+    i_2: f32 = 1.0
+    jmp L4
+
+L4:
+    cmp i_2, 6.0
+    bge i_2, L5
+    print i_2 + 1.0
+    i_3: f32 = i_2 + 0.5
+    jmp L4
+
+L5:
+    r4: ptr = alloc 14  ; "hello, world\0"
+    store r4, "hello, world"
     print r4
+    free r4
 end function

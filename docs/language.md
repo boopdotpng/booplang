@@ -1,4 +1,4 @@
-## how does the language look?
+# how does the language look?
 
 This language is intended to mimic the look of english as much as possible. The main goal is to remove the use of parenthesis, brackets, and other weird characters that you cant type without moving your fingers somewhere weird. 
 
