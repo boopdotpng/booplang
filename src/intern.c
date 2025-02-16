@@ -18,18 +18,16 @@ struct intern_table {
 static unsigned long hash1(const char *str) {
   unsigned long h = 5381;
   int c;
-  while ((c = *str++)) {
+  while ((c = *str++))
     h = ((h << 5) + h) + c;
-  }
   return h;
 }
 
 static unsigned long hash2(const char *str, int capacity) {
   unsigned long h = 0;
   int c;
-  while ((c = *str++)) {
+  while ((c = *str++))
     h = (h * 31 + c) % (capacity - 1);
-  }
   return (h | 1);
 }
 
@@ -53,68 +51,7 @@ static int find_slot(intern_table *t, const char *str, int for_insert) {
     }
     slot = (slot + h2v) % t->capacity;
   }
-  return -1;
-}
-
-static void resize(intern_table *t);
-
-intern_table *create_intern_table(int capacity, double load_factor) {
-  intern_table *tbl = calloc(1, sizeof(*tbl));
-  tbl->capacity = capacity;
-  tbl->load_factor = load_factor;
-  tbl->size = 0;
-  tbl->tombstone_count = 0;
-  tbl->keys = calloc(capacity, sizeof(char *));
-  tbl->values = calloc(capacity, sizeof(token_type));
-  return tbl;
-}
-
-intern_result intern_string(intern_table *t, const char *start, size_t len, token_type value) {
-  char temp[len + 1];
-  memcpy(temp, start, len);
-  temp[len] = '\0';
-
-  int slot = find_slot(t, temp, 0);
-  if (slot != -1 && t->keys[slot] != EMPTY_SLOT && t->keys[slot] != TOMBSTONE) {
-    return (intern_result){t->keys[slot], t->values[slot]};
-  }
-
-  double ratio = (double)t->size / t->capacity;
-  double tomb_ratio = (double)t->tombstone_count / t->capacity;
-  if (ratio >= t->load_factor || tomb_ratio >= 0.4) {
-    resize(t);
-  }
-
-  slot = find_slot(t, temp, 1);
-  if (slot == -1) {
-    fprintf(stderr, "couldn't find a slot after resize, unexpected\n");
-    return (intern_result){NULL, 0};
-  }
-
-  if (t->keys[slot] == EMPTY_SLOT) {
-    t->size++;
-  } else if (t->keys[slot] == TOMBSTONE) {
-    t->tombstone_count--;
-  }
-
-  char *dup = strndup(temp, len);
-  t->keys[slot] = dup;
-  t->values[slot] = value;
-  return (intern_result){dup, value};
-}
-
-void destroy_intern_table(intern_table *t) {
-  if (!t)
-    return;
-  for (int i = 0; i < t->capacity; i++) {
-    char *k = t->keys[i];
-    if (k && k != EMPTY_SLOT && k != TOMBSTONE) {
-      free(k);
-    }
-  }
-  free(t->keys);
-  free(t->values);
-  free(t);
+  return -1; // table is full
 }
 
 static void resize(intern_table *t) {
@@ -122,35 +59,117 @@ static void resize(intern_table *t) {
   char **oldkeys = t->keys;
   token_type *oldvalues = t->values;
 
-  t->capacity *= 2;
-  t->size = 0;
-  t->tombstone_count = 0;
-  t->keys = calloc(t->capacity, sizeof(char *));
-  t->values = calloc(t->capacity, sizeof(token_type));
-
-  if (!t->keys || !t->values) {
-    t->keys = oldkeys;
-    t->values = oldvalues;
-    t->capacity = oldcap;
-    fprintf(stderr, "failed to resize intern table\n");
-    return;
+  int newcap = t->capacity * 2;
+  char **newkeys = calloc(newcap, sizeof(char *));
+  token_type *newvalues = calloc(newcap, sizeof(token_type));
+  if (!newkeys || !newvalues) {
+    fprintf(stderr, "failed to allocate new intern table arrays\n");
+    free(newkeys);
+    free(newvalues);
+    exit(EXIT_FAILURE);
   }
 
+  t->capacity = newcap;
+  t->size = 0;
+  t->tombstone_count = 0;
+  t->keys = newkeys;
+  t->values = newvalues;
+
+  // reinsert old entries into new table
   for (int i = 0; i < oldcap; i++) {
     char *k = oldkeys[i];
     if (k && k != EMPTY_SLOT && k != TOMBSTONE) {
       int slot = find_slot(t, k, 1);
       if (slot == -1) {
-        fprintf(stderr, "map is full during resize reinsert?\n");
+        fprintf(stderr, "unexpected error during rehashing\n");
         continue;
-      }
-      if (t->keys[slot] == EMPTY_SLOT) {
-        t->size++;
       }
       t->keys[slot] = k;
       t->values[slot] = oldvalues[i];
+      t->size++;
     }
   }
   free(oldkeys);
   free(oldvalues);
+}
+
+intern_result intern_string(intern_table *t, const char *start, size_t len, token_type value) {
+  // use strndup directly to allocate and null-terminate
+  char *temp = strndup(start, len);
+  if (!temp) {
+    fprintf(stderr, "failed to allocate string in intern_string\n");
+    exit(EXIT_FAILURE);
+  }
+
+  int slot = find_slot(t, temp, 0);
+  if (slot != -1 && t->keys[slot] != EMPTY_SLOT && t->keys[slot] != TOMBSTONE) {
+    // already interned; free our duplicate and return existing entry
+    free(temp);
+    return (intern_result){ t->keys[slot], t->values[slot] };
+  }
+
+  double ratio = (double)t->size / t->capacity;
+  double tomb_ratio = (double)t->tombstone_count / t->capacity;
+  if (ratio >= t->load_factor || tomb_ratio >= 0.4) {
+    resize(t);
+    // recompute slot after resize
+    slot = find_slot(t, temp, 1);
+    if (slot == -1) {
+      fprintf(stderr, "couldn't find a slot after resizing\n");
+      free(temp);
+      exit(EXIT_FAILURE);
+    }
+  } else if (slot == -1) {
+    // fallback in case find_slot didn't return a valid slot
+    slot = find_slot(t, temp, 1);
+    if (slot == -1) {
+      fprintf(stderr, "couldn't find a slot for insertion\n");
+      free(temp);
+      exit(EXIT_FAILURE);
+    }
+  }
+
+  if (t->keys[slot] == EMPTY_SLOT) {
+    t->size++;
+  } else if (t->keys[slot] == TOMBSTONE) {
+    t->tombstone_count--;
+  }
+  t->keys[slot] = temp;
+  t->values[slot] = value;
+  return (intern_result){ temp, value };
+}
+
+intern_table *create_intern_table(int capacity, double load_factor) {
+  intern_table *tbl = calloc(1, sizeof(*tbl));
+  if (!tbl) {
+    fprintf(stderr, "failed to allocate intern_table\n");
+    exit(EXIT_FAILURE);
+  }
+  tbl->capacity = capacity;
+  tbl->load_factor = load_factor;
+  tbl->size = 0;
+  tbl->tombstone_count = 0;
+  tbl->keys = calloc(capacity, sizeof(char *));
+  tbl->values = calloc(capacity, sizeof(token_type));
+  if (!tbl->keys || !tbl->values) {
+    fprintf(stderr, "failed to allocate intern_table arrays\n");
+    free(tbl->keys);
+    free(tbl->values);
+    free(tbl);
+    exit(EXIT_FAILURE);
+  }
+  return tbl;
+}
+
+void destroy_intern_table(intern_table *t) {
+  if (!t)
+    return;
+  for (int i = 0; i < t->capacity; i++) {
+    char *k = t->keys[i];
+    if (k && k != EMPTY_SLOT && k != TOMBSTONE)
+      free(k);
+  }
+  free(t->keys);
+  free(t->values);
+  free(t);
 }
