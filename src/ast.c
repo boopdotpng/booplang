@@ -5,23 +5,6 @@
 #include <stdio.h>
 #include <string.h>
 
-typedef enum {
-  NODE_PROGRAM,
-  NODE_FUNCTION,
-  NODE_IF,
-  NODE_WHILE,
-  NODE_FOR,
-  NODE_ASSIGNMENT,
-  NODE_BINARY_OP,
-  NODE_UNARY_OP,
-  NODE_CALL,
-  NODE_RETURN,
-  NODE_IDENTIFIER,
-  NODE_NUMBER,
-  NODE_STRING,
-  NODE_PRINT,
-} node_type;
-
 typedef struct {
   vector *tokens;
   int current;
@@ -32,48 +15,6 @@ typedef struct {
   int col;
   int error_count;
 } parser_state;
-
-typedef struct {
-  enum { TYPE_INT, TYPE_FLOAT } num_type;
-  double value;
-} number_value;
-
-struct ast_node {
-  node_type type;
-  union {
-    number_value number;
-    char *string;
-
-    struct {
-      ast_node *left;
-      ast_node *right;
-      token_type op;
-    } binary;
-
-    struct {
-      char *var_name;
-      ast_node *value;
-    } assignment;
-
-    struct {
-      char *name;
-      vector /* ast_node */ *params;
-      token_type return_type;
-    } function;
-
-    struct {
-      ast_node *condition;
-      ast_node *else_body;
-      ast_node *initializer;
-      ast_node *step;
-    } control;
-
-    ast_node *expression;
-
-  } data;
-
-  vector /* ast_node */ *children;
-};
 
 static int is_unary_op(token *t);
 static int is_binary_op(token *t);

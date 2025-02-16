@@ -46,3 +46,26 @@ void destroy_streamer(file_streamer *streamer) {
   }
   free(streamer);
 }
+
+int write_file(const char *filename, vector* buffer){
+  FILE *file = fopen(filename, "wb");
+  if (!file) return -1;
+  size_t size = buffer->size;
+  size_t written = fwrite(buffer->data, 1, size, file);
+  fclose(file);
+  return (written == size) ? 0 : -1;
+}
+
+int check_architecture() {
+  #if defined(__aarch64__) || defined(_M_ARM64)
+    return 1;
+  #elif defined(__x86_64__) || defined(_M_X64)
+      return -1;
+  #elif defined(__i386__) || defined(_M_IX86)
+      return -1;;
+  #elif defined(__arm__) || defined(_M_ARM)
+      return -1;
+  #else
+      return -1;
+  #endif 
+}

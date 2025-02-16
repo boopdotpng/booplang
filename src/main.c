@@ -4,6 +4,7 @@
 #include <getopt.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include "utils.h"
 
 typedef struct {
   int emit_ast;
@@ -12,7 +13,7 @@ typedef struct {
 } compiler_options;
 
 void print_usage(const char *prog_name) {
-  fprintf(stderr, "usage: %s [-a | --emit-ast] [-t | --emit-tokens] <filename>\n", prog_name);
+  fprintf(stderr, "usage: %s version %s [-a | --emit-ast] [-t | --emit-tokens] <filename>\n", prog_name, BOOPLANG_VERSION);
   exit(EXIT_FAILURE);
 }
 
@@ -75,6 +76,17 @@ int main(int argc, char *argv[]) {
   ast_node *program = gen_ast(l->tokens);
   if (options.emit_ast)
     print_ast(program);
+
+  // TODO!
+  // if (options.save_ir)
+  //   return
+
+
+  // check architecture before lowering
+  if (check_architecture() == -1) {
+    printf("aarch64-darwin is currently the only supported architecture.");
+    exit(1);
+  }
 
   return EXIT_SUCCESS;
 }

@@ -3,5 +3,4 @@
 
 typedef struct ir_node ir_node;
 
-void pretty_print_ir();
-ir_node *gen_ir(ast_node *node);
+ir_node *gen_ir(const char *filename, int write_file, ast_node *node);
