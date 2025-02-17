@@ -370,26 +370,33 @@ static void parse_number(lexer *lexer, char *buffer, size_t bytes_read) {
 
 static void parse_symbol(lexer *lexer, trie_node *root, char *buffer, size_t bytes_read) {
   int start = lexer->col;
-  while (lexer->col < (int)bytes_read && issymbol(buffer[lexer->col])) {
-    lexer->col++;
+  int best = 0;
+  token_type best_type;
+  char candidate[8];
+  for (int len = 1; start + len <= (int)bytes_read && len < (int)sizeof(candidate); len++) {
+    bool all_symbols = true;
+    for (int i = 0; i < len; i++) {
+      if (!issymbol(buffer[start + i])) {
+        all_symbols = false;
+        break;
+      }
+    }
+    if (!all_symbols)
+      break;
+    memcpy(candidate, buffer + start, len);
+    candidate[len] = '\0';
+    match_result res = search_trie(root, candidate);
+    if (res.length == len) { 
+      best = len;
+      best_type = res.type;
+    }
   }
-
-  int length = lexer->col - start;
-  char tmp[8];
-  if (length >= 8) {
-    fprintf(stderr, "symbol too long at line %d col %d\n", lexer->line, lexer->col);
+  if (best == 0) {
+    fprintf(stderr, "invalid symbol at line %d col %d\n", lexer->line, lexer->col);
     exit(1);
   }
-  memcpy(tmp, buffer + start, length);
-  tmp[length] = '\0';
-
-  match_result res = search_trie(root, tmp);
-  if (res.length == 0) {
-    fprintf(stderr, "invalid symbol '%s' at line %d col %d\n", tmp, lexer->line, lexer->col);
-    exit(1);
-  } else {
-    add_token_null(lexer, res.type);
-  }
+  add_token_null(lexer, best_type);
+  lexer->col = start + best;
 }
 
 static void parse_identifier(lexer *lexer, char *buffer, size_t bytes_read) {
