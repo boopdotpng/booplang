@@ -1,6 +1,6 @@
 #pragma once
-#include "vector.h"
 #include "token.h"
+#include "vector.h"
 
 typedef enum {
   NODE_PROGRAM,

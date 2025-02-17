@@ -51,7 +51,7 @@ static int find_slot(intern_table *t, const char *str, int for_insert) {
     }
     slot = (slot + h2v) % t->capacity;
   }
-  return -1; // table is full
+  return -1;  // table is full
 }
 
 static void resize(intern_table *t) {
@@ -105,7 +105,7 @@ intern_result intern_string(intern_table *t, const char *start, size_t len, toke
   if (slot != -1 && t->keys[slot] != EMPTY_SLOT && t->keys[slot] != TOMBSTONE) {
     // already interned; free our duplicate and return existing entry
     free(temp);
-    return (intern_result){ t->keys[slot], t->values[slot] };
+    return (intern_result){t->keys[slot], t->values[slot]};
   }
 
   double ratio = (double)t->size / t->capacity;
@@ -136,7 +136,7 @@ intern_result intern_string(intern_table *t, const char *start, size_t len, toke
   }
   t->keys[slot] = temp;
   t->values[slot] = value;
-  return (intern_result){ temp, value };
+  return (intern_result){temp, value};
 }
 
 intern_table *create_intern_table(int capacity, double load_factor) {

@@ -386,7 +386,7 @@ static void parse_symbol(lexer *lexer, trie_node *root, char *buffer, size_t byt
     memcpy(candidate, buffer + start, len);
     candidate[len] = '\0';
     match_result res = search_trie(root, candidate);
-    if (res.length == len) { 
+    if (res.length == len) {
       best = len;
       best_type = res.type;
     }

@@ -1,10 +1,10 @@
 #include "ast.h"
 #include "lexer.h"
+#include "utils.h"
 #include "vector.h"
 #include <getopt.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include "utils.h"
 
 typedef struct {
   int emit_ast;
@@ -13,7 +13,8 @@ typedef struct {
 } compiler_options;
 
 void print_usage(const char *prog_name) {
-  fprintf(stderr, "usage: %s version %s [-a | --emit-ast] [-t | --emit-tokens] <filename>\n", prog_name, BOOPLANG_VERSION);
+  fprintf(stderr, "usage: %s version %s [-a | --emit-ast] [-t | --emit-tokens] <filename>\n",
+          prog_name, BOOPLANG_VERSION);
   exit(EXIT_FAILURE);
 }
 
@@ -80,7 +81,6 @@ int main(int argc, char *argv[]) {
   // TODO!
   // if (options.save_ir)
   //   return
-
 
   // check architecture before lowering
   if (check_architecture() == -1) {
