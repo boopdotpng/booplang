@@ -511,7 +511,7 @@ static ast_node *parse_binary_expression(parser_state *state, int min_prec) {
   if (is_unary_op(t)) {
     token *op = t;
     next(state);
-    ast_node *operand = parse_binary_expression(state, precedence(op->type));
+    ast_node *operand = parse_binary_expression(state, precedence(op->type) + 1);    
     if (!operand) {
       throw_error(state, "invalid operand for unary op");
       return NULL;

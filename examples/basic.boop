@@ -5,7 +5,7 @@ fn factorial(number)
     return number * factorial(smaller)
 
 fn main(argc, argv) ; this is a comment
-    num = 5
+    num = (5 - 1) / (-2 + (2*2))
     fact = factorial(num)
     print fact
 
