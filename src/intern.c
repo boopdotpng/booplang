@@ -40,12 +40,10 @@ static int find_slot(intern_table *t, const char *str, int for_insert) {
   for (int i = 0; i < t->capacity; i++) {
     char *k = t->keys[slot];
     if (k == EMPTY_SLOT) {
-      if (for_insert && first_tomb != -1)
-        return first_tomb;
+      if (for_insert && first_tomb != -1) return first_tomb;
       return slot;
     } else if (k == TOMBSTONE) {
-      if (for_insert && first_tomb == -1)
-        first_tomb = slot;
+      if (for_insert && first_tomb == -1) first_tomb = slot;
     } else if (strcmp(k, str) == 0) {
       return slot;
     }
@@ -162,12 +160,10 @@ intern_table *create_intern_table(int capacity, double load_factor) {
 }
 
 void destroy_intern_table(intern_table *t) {
-  if (!t)
-    return;
+  if (!t) return;
   for (int i = 0; i < t->capacity; i++) {
     char *k = t->keys[i];
-    if (k && k != EMPTY_SLOT && k != TOMBSTONE)
-      free(k);
+    if (k && k != EMPTY_SLOT && k != TOMBSTONE) free(k);
   }
   free(t->keys);
   free(t->values);

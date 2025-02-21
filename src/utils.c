@@ -49,8 +49,7 @@ void destroy_streamer(file_streamer *streamer) {
 
 int write_file(const char *filename, vector *buffer) {
   FILE *file = fopen(filename, "wb");
-  if (!file)
-    return -1;
+  if (!file) return -1;
   size_t size = buffer->size;
   size_t written = fwrite(buffer->data, 1, size, file);
   fclose(file);

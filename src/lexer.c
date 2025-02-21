@@ -90,8 +90,7 @@ static void parse_indent(lexer *lexer, char *buffer) {
     return;
   }
 
-  if (buffer[lexer->col] == '\n' || buffer[lexer->col] == '\0')
-    return;
+  if (buffer[lexer->col] == '\n' || buffer[lexer->col] == '\0') return;
 
   if (lexer->indent_style == UNSET && ((spaces > 0) != (tabs > 0))) {
     if (spaces > 0) {
@@ -148,115 +147,63 @@ static void parse_indent(lexer *lexer, char *buffer) {
 
 const char *token_type_str(token_type t) {
   switch (t) {
-  case FN:
-    return "fn";
-  case FOR:
-    return "for";
-  case WHILE:
-    return "while";
-  case IF:
-    return "if";
-  case ELSE:
-    return "else";
-  case ELSE_IF:
-    return "else_if";
-  case RETURN:
-    return "return";
-  case BY:
-    return "by";
-  case FROM:
-    return "from";
-  case IMPORT:
-    return "import";
-  case TO:
-    return "to";
-  case PRINT:
-    return "print";
-  case MATCH:
-    return "match";
-  case NOT:
-    return "not";
-  case AND:
-    return "and";
-  case OR:
-    return "or";
-  case FALSE:
-    return "false";
-  case TRUE:
-    return "true";
+  case FN: return "fn";
+  case FOR: return "for";
+  case WHILE: return "while";
+  case IF: return "if";
+  case ELSE: return "else";
+  case ELSE_IF: return "else_if";
+  case RETURN: return "return";
+  case BY: return "by";
+  case FROM: return "from";
+  case IMPORT: return "import";
+  case TO: return "to";
+  case PRINT: return "print";
+  case MATCH: return "match";
+  case NOT: return "not";
+  case AND: return "and";
+  case OR: return "or";
+  case FALSE: return "false";
+  case TRUE: return "true";
 
-  case MUL:
-    return "mul";
-  case DIV:
-    return "div";
-  case INT_DIV:
-    return "int_div";
-  case ADD:
-    return "add";
-  case SUB:
-    return "sub";
-  case ADD_ONE:
-    return "add_one";
-  case SUB_ONE:
-    return "sub_one";
-  case EQ:
-    return "eq";
-  case COMP_EQ:
-    return "comp_eq";
-  case ADD_EQ:
-    return "add_eq";
-  case SUB_EQ:
-    return "sub_eq";
-  case MUL_EQ:
-    return "mul_eq";
-  case DIV_EQ:
-    return "div_eq";
-  case INTDIV_EQ:
-    return "intdiv_eq";
-  case GT:
-    return "gt";
-  case LT:
-    return "lt";
-  case GTE:
-    return "gte";
-  case LTE:
-    return "lte";
-  case CARROT:
-    return "carrot";
-  case CARROT_EQ:
-    return "carrot_eq";
+  case MUL: return "mul";
+  case DIV: return "div";
+  case INT_DIV: return "int_div";
+  case ADD: return "add";
+  case SUB: return "sub";
+  case ADD_ONE: return "add_one";
+  case SUB_ONE: return "sub_one";
+  case EQ: return "eq";
+  case COMP_EQ: return "comp_eq";
+  case ADD_EQ: return "add_eq";
+  case SUB_EQ: return "sub_eq";
+  case MUL_EQ: return "mul_eq";
+  case DIV_EQ: return "div_eq";
+  case INTDIV_EQ: return "intdiv_eq";
+  case GT: return "gt";
+  case LT: return "lt";
+  case GTE: return "gte";
+  case LTE: return "lte";
+  case CARROT: return "carrot";
+  case CARROT_EQ: return "carrot_eq";
 
-  case IDENTIFIER:
-    return "identifier";
-  case STRING:
-    return "string";
-  case INTEGER:
-    return "number";
-  case FLOAT:
-    return "float";
+  case IDENTIFIER: return "identifier";
+  case STRING: return "string";
+  case INTEGER: return "number";
+  case FLOAT: return "float";
 
-  case COMMA:
-    return "comma";
-  case LPAREN:
-    return "lparen";
-  case RPAREN:
-    return "rparen";
-  case LSQPAREN:
-    return "lsqparen";
-  case RSQPAREN:
-    return "rsqparen";
+  case COMMA: return "comma";
+  case LPAREN: return "lparen";
+  case RPAREN: return "rparen";
+  case LSQPAREN: return "lsqparen";
+  case RSQPAREN: return "rsqparen";
 
-  case INDENT:
-    return "indent";
-  case DEDENT:
-    return "dedent";
-  case NEWLINE:
-    return "newline";
-  case END:
-    return "end";
+  case INDENT: return "indent";
+  case DEDENT: return "dedent";
+  case NEWLINE: return "newline";
+  case END: return "end";
 
-  default:
-    return "unknown_token";
+  default: return "unknown_token";
   }
 }
 
@@ -290,17 +237,11 @@ static int issymbol(char c) {
 
 static char handle_escape_sequence(char c) {
   switch (c) {
-  case 'n':
-    return '\n';
-  case 't':
-    return '\t';
-  case '\\':
-    return '"';
-  case '\'':
-    return '\'';
-  default:
-    fprintf(stderr, "unknown escape sequence '\\%c'\n", c);
-    return '\0';
+  case 'n': return '\n';
+  case 't': return '\t';
+  case '\\': return '"';
+  case '\'': return '\'';
+  default: fprintf(stderr, "unknown escape sequence '\\%c'\n", c); return '\0';
   }
 }
 
@@ -381,8 +322,7 @@ static void parse_symbol(lexer *lexer, trie_node *root, char *buffer, size_t byt
         break;
       }
     }
-    if (!all_symbols)
-      break;
+    if (!all_symbols) break;
     memcpy(candidate, buffer + start, len);
     candidate[len] = '\0';
     match_result res = search_trie(root, candidate);

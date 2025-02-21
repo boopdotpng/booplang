@@ -19,8 +19,7 @@ struct trie_node {
 
 static int symbol_to_index(const char *sym) {
   for (int i = 0; i < SYMBOL_COUNT; i++) {
-    if (*sym == SYMBOL_LIST[i])
-      return i;
+    if (*sym == SYMBOL_LIST[i]) return i;
   }
   return -1;
 }
@@ -63,8 +62,7 @@ match_result search_trie(trie_node *root, const char *sym) {
   while (sym[pos]) {
     int index = symbol_to_index(&sym[pos]);
     // if there's no path for this character, symbol isn't in trie
-    if (index == -1 || !cur->children[index])
-      break;  // end of match
+    if (index == -1 || !cur->children[index]) break;  // end of match
 
     cur = cur->children[index];
     pos++;
@@ -80,11 +78,9 @@ match_result search_trie(trie_node *root, const char *sym) {
 }
 
 void free_trie(trie_node *root) {
-  if (!root)
-    return;
+  if (!root) return;
   for (int i = 0; i < SYMBOL_COUNT; i++) {
-    if (root->children[i])
-      free_trie(root->children[i]);
+    if (root->children[i]) free_trie(root->children[i]);
   }
   free(root);
 }

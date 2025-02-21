@@ -16,4 +16,3 @@ AlignConsecutiveDeclarations: false
 PointerAlignment: Right
 AllowShortEnumsOnASingleLine: true
 AllowShortCaseLabelsOnASingleLine: true
-IndentWidth: 2

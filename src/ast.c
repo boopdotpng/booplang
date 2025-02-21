@@ -38,16 +38,33 @@ static int precedence(token_type op);
 
 static int is_unary_op(token *t) {
   switch (t->type) {
-  case SUB_ONE: case ADD_ONE: case NOT: case SUB: case BITW_NOT: return 1;
+  case SUB_ONE:
+  case ADD_ONE:
+  case NOT:
+  case SUB:
+  case BITW_NOT: return 1;
   default: return 0;
   }
 }
 
 static int is_binary_op(token *t) {
   switch (t->type) {
-  case ADD: case SUB: case MUL: case DIV: case MODULO: case AND: case OR:
-  case COMP_EQ: case NOT_EQ: case GT: case GTE: case LT: case LTE:
-  case CARROT: case BITW_AND: case BITW_OR: return 1;
+  case ADD:
+  case SUB:
+  case MUL:
+  case DIV:
+  case MODULO:
+  case AND:
+  case OR:
+  case COMP_EQ:
+  case NOT_EQ:
+  case GT:
+  case GTE:
+  case LT:
+  case LTE:
+  case CARROT:
+  case BITW_AND:
+  case BITW_OR: return 1;
   default: return 0;
   }
 }
@@ -62,7 +79,8 @@ static void throw_error(parser_state *state, const char *msg) {
 }
 
 static void print_indent(int depth) {
-    for (int i = 0; i < depth; i++) printf("  ");
+  for (int i = 0; i < depth; i++)
+    printf("  ");
 }
 
 void pretty_print_ast(ast_node *node, int depth) {
@@ -70,9 +88,7 @@ void pretty_print_ast(ast_node *node, int depth) {
   print_indent(depth);
 
   switch (node->type) {
-  case NODE_PROGRAM:
-    printf("program\n");
-    break;
+  case NODE_PROGRAM: printf("program\n"); break;
 
   case NODE_FUNCTION:
     printf("function: %s\n", node->data.function.name);
@@ -193,9 +209,7 @@ void pretty_print_ast(ast_node *node, int depth) {
     pretty_print_ast(node->data.expression, depth + 2);
     break;
 
-  default:
-    printf("unknown node type: %d\n", node->type);
-    break;
+  default: printf("unknown node type: %d\n", node->type); break;
   }
 
   if (node->children && node->children->size > 0) {
@@ -209,8 +223,7 @@ void pretty_print_ast(ast_node *node, int depth) {
 }
 
 static token *next(parser_state *state) {
-  if ((size_t)state->current + 1 >= state->tokens->size)
-    return NULL;
+  if ((size_t)state->current + 1 >= state->tokens->size) return NULL;
   token *n = get_element(state->tokens, ++state->current);
   state->col = n->col;
   state->line = n->line;
@@ -263,12 +276,10 @@ static ast_node *parse_function(parser_state *state) {
   }
   ast_node *func = create_node(NODE_FUNCTION);
   func->data.function.name = t->ident;
-  if (strcmp(t->ident, "main") == 0)
-    state->has_main = 1;
+  if (strcmp(t->ident, "main") == 0) state->has_main = 1;
   t = next(state);
 
-  if (!(t = expect(state, LPAREN)))
-    return NULL;
+  if (!(t = expect(state, LPAREN))) return NULL;
 
   func->data.function.params = create_vector(sizeof(ast_node *), 1);
   int expect_comma = 0;
@@ -350,8 +361,7 @@ static ast_node *parse_for(parser_state *state) {
   for_node->data.control.initializer->data.assignment.var_name = t->ident;
   next(state);
 
-  if (!expect(state, FROM))
-    return NULL;
+  if (!expect(state, FROM)) return NULL;
 
   ast_node *start_expr = parse_expression(state);
   if (!start_expr) {
@@ -360,8 +370,7 @@ static ast_node *parse_for(parser_state *state) {
   }
   for_node->data.control.initializer->data.assignment.value = start_expr;
 
-  if (!expect(state, TO))
-    return NULL;
+  if (!expect(state, TO)) return NULL;
 
   ast_node *end_expr = parse_expression(state);
   if (!end_expr) {
@@ -405,8 +414,7 @@ static ast_node *parse_assignment(parser_state *state) {
   node->data.assignment.var_name = t->ident;
   next(state);
 
-  if (!expect(state, EQ))
-    return NULL;
+  if (!expect(state, EQ)) return NULL;
 
   node->data.assignment.value = parse_expression(state);
   if (!node->data.assignment.value) {
@@ -437,8 +445,7 @@ static ast_node *parse_function_call(parser_state *state) {
   call->data.string = t->ident;
   next(state);
 
-  if (!expect(state, LPAREN))
-    return NULL;
+  if (!expect(state, LPAREN)) return NULL;
 
   if (peek(state, 0) && peek(state, 0)->type != RPAREN) {
     while (1) {
@@ -458,8 +465,7 @@ static ast_node *parse_function_call(parser_state *state) {
     }
   }
 
-  if (!expect(state, RPAREN))
-    return NULL;
+  if (!expect(state, RPAREN)) return NULL;
   return call;
 }
 
@@ -533,15 +539,11 @@ static ast_node *parse_binary_expression(parser_state *state, int min_prec) {
 
   while (1) {
     token *op = peek(state, 0);
-    if (!op)
-      break;
-    if (op->type == COMMA || op->type == RPAREN || op->type == NEWLINE)
-      break;
-    if (!is_binary_op(op))
-      break;
+    if (!op) break;
+    if (op->type == COMMA || op->type == RPAREN || op->type == NEWLINE) break;
+    if (!is_binary_op(op)) break;
     int op_prec = precedence(op->type);
-    if (op_prec < min_prec)
-      break;
+    if (op_prec < min_prec) break;
 
     next(state);
     int next_min_prec = op_prec + 1;
@@ -569,29 +571,21 @@ static ast_node *parse_binary_expression(parser_state *state, int min_prec) {
 
 static int precedence(token_type op) {
   switch (op) {
-  case OR:
-    return 1;
-  case AND:
-    return 2;
+  case OR: return 1;
+  case AND: return 2;
   case EQ:
-  case NOT_EQ:
-    return 3;
+  case NOT_EQ: return 3;
   case LT:
   case LTE:
   case GT:
-  case GTE:
-    return 4;
+  case GTE: return 4;
   case ADD:
-  case SUB:
-    return 5;
+  case SUB: return 5;
   case MUL:
   case DIV:
-  case MODULO:
-    return 6;
-  case CARROT:
-    return 7;
-  default:
-    return 0;
+  case MODULO: return 6;
+  case CARROT: return 7;
+  default: return 0;
   }
 }
 
@@ -608,21 +602,11 @@ static ast_node *parse_statement(parser_state *state) {
   }
 
   switch (t->type) {
-  case FN:
-    next(state);
-    return parse_function(state);
-  case IF:
-    next(state);
-    return parse_if(state);
-  case FOR:
-    next(state);
-    return parse_for(state);
-  case WHILE:
-    next(state);
-    return parse_while(state);
-  case PRINT:
-    next(state);
-    return parse_print(state);
+  case FN: next(state); return parse_function(state);
+  case IF: next(state); return parse_if(state);
+  case FOR: next(state); return parse_for(state);
+  case WHILE: next(state); return parse_while(state);
+  case PRINT: next(state); return parse_print(state);
   case IDENTIFIER:
     if (peek(state, 1) && peek(state, 1)->type == EQ) {
       return parse_assignment(state);
@@ -631,18 +615,11 @@ static ast_node *parse_statement(parser_state *state) {
     } else {
       return parse_expression(state);
     }
-  case MATCH:
-    return NULL;
-  case RETURN:
-    next(state);
-    return parse_return(state);
+  case MATCH: return NULL;
+  case RETURN: next(state); return parse_return(state);
   case DEDENT:
-  case INDENT:
-    next(state);
-    return NULL;
-  default:
-    throw_error(state, "unexpected token in statement");
-    return NULL;
+  case INDENT: next(state); return NULL;
+  default: throw_error(state, "unexpected token in statement"); return NULL;
   }
 }
 
@@ -663,8 +640,7 @@ static void parse_block(parser_state *state, vector *children) {
       t = peek(state, 0);
     }
 
-    if (!t || t->type == END)
-      break;
+    if (!t || t->type == END) break;
 
     if (t->type == DEDENT) {
       next(state);
@@ -672,14 +648,12 @@ static void parse_block(parser_state *state, vector *children) {
     }
 
     ast_node *stmt = parse_statement(state);
-    if (stmt)
-      add_element(children, &stmt);
+    if (stmt) add_element(children, &stmt);
   }
 
   token *t = peek(state, 0);
   if (t && t->type != END) {
-    if (!expect(state, DEDENT))
-      throw_error(state, "expected dedent at end of block");
+    if (!expect(state, DEDENT)) throw_error(state, "expected dedent at end of block");
   }
 }
 
