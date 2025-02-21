@@ -57,7 +57,7 @@ int write_file(const char *filename, vector *buffer) {
   return (written == size) ? 0 : -1;
 }
 
-int check_architecture() {
+int check_architecture(void) {
 #if defined(__aarch64__) || defined(_M_ARM64)
   return 1;
 #elif defined(__x86_64__) || defined(_M_X64)

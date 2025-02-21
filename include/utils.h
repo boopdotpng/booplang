@@ -14,4 +14,4 @@ file_streamer *create_streamer(const char *filename);
 size_t stream_line(file_streamer *streamer, char *buffer);
 void destroy_streamer(file_streamer *streamer);
 int write_file(const char *filename, vector *buffer);
-int check_architecture();
+int check_architecture(void);

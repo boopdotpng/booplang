@@ -38,38 +38,17 @@ static int precedence(token_type op);
 
 static int is_unary_op(token *t) {
   switch (t->type) {
-  case SUB_ONE:
-  case ADD_ONE:
-  case NOT:
-  case SUB:
-  case BITW_NOT:
-    return 1;
-  default:
-    return 0;
+  case SUB_ONE: case ADD_ONE: case NOT: case SUB: case BITW_NOT: return 1;
+  default: return 0;
   }
 }
 
 static int is_binary_op(token *t) {
   switch (t->type) {
-  case ADD:
-  case SUB:
-  case MUL:
-  case DIV:
-  case MODULO:
-  case AND:
-  case OR:
-  case COMP_EQ:
-  case NOT_EQ:
-  case GT:
-  case GTE:
-  case LT:
-  case LTE:
-  case CARROT:
-  case BITW_AND:
-  case BITW_OR:
-    return 1;
-  default:
-    return 0;
+  case ADD: case SUB: case MUL: case DIV: case MODULO: case AND: case OR:
+  case COMP_EQ: case NOT_EQ: case GT: case GTE: case LT: case LTE:
+  case CARROT: case BITW_AND: case BITW_OR: return 1;
+  default: return 0;
   }
 }
 
@@ -83,15 +62,11 @@ static void throw_error(parser_state *state, const char *msg) {
 }
 
 static void print_indent(int depth) {
-  for (int i = 0; i < depth; i++) {
-    printf("  ");
-  }
+    for (int i = 0; i < depth; i++) printf("  ");
 }
 
 void pretty_print_ast(ast_node *node, int depth) {
-  if (!node)
-    return;
-
+  if (!node) return;
   print_indent(depth);
 
   switch (node->type) {
@@ -246,7 +221,6 @@ static token *peek(parser_state *state, int ahead) {
   if ((size_t)state->current + ahead >= state->tokens->size) {
     return NULL;
   }
-
   return get_element(state->tokens, state->current + ahead);
 }
 
@@ -256,7 +230,6 @@ static token *expect(parser_state *state, token_type type) {
     throw_error(state, "unexpected token type");
     return NULL;
   }
-
   state->current++;
   state->line = t->line;
   state->col = t->col;
@@ -318,8 +291,7 @@ static ast_node *parse_function(parser_state *state) {
     t = peek(state, 0);
   }
 
-  if (!expect(state, RPAREN))
-    return NULL;
+  if (!expect(state, RPAREN)) return NULL;
 
   parse_block(state, func->children);
 
@@ -511,7 +483,7 @@ static ast_node *parse_binary_expression(parser_state *state, int min_prec) {
   if (is_unary_op(t)) {
     token *op = t;
     next(state);
-    ast_node *operand = parse_binary_expression(state, precedence(op->type) + 1);    
+    ast_node *operand = parse_binary_expression(state, precedence(op->type) + 1);
     if (!operand) {
       throw_error(state, "invalid operand for unary op");
       return NULL;

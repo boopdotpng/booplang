@@ -4,7 +4,7 @@ BasedOnStyle: LLVM
 IndentWidth: 2 
 UseTab: Never
 BreakBeforeBraces: Attach
-AllowShortIfStatementsOnASingleLine: false
+AllowShortIfStatementsOnASingleLine: true
 IndentCaseLabels: false
 ColumnLimit: 100
 AlignTrailingComments: true
@@ -14,3 +14,6 @@ AlignOperands: true
 AlignConsecutiveAssignments: false 
 AlignConsecutiveDeclarations: false
 PointerAlignment: Right
+AllowShortEnumsOnASingleLine: true
+AllowShortCaseLabelsOnASingleLine: true
+IndentWidth: 2
