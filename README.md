@@ -30,6 +30,7 @@ these would be nice to have:
 - I won't optimize for performance until the language is almost complete. I want to have a working language quicker, as opposed to working on it an extra month just for a 20% speedup. 
 - My goal for the next year is to get into FPGA and CPU design, and I think a project like this is a really good way to transition into that.  
 - The estimated timeline is a few months (I have a 9-5). 
+- I'm currently in a fight with clang-format about how enums should be formatted and I can't win. So the line count is artifically inflated. 
 
 ## documentation 
 The documentation will be updated when I get further into the project, but the aim is to make compilers and assembly more understandable for newer cs students. I'm looking forward to the massive write-up after I'm done! 
