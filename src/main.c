@@ -1,5 +1,4 @@
 #include "ast.h"
-#include "ir.h"
 #include "lexer.h"
 #include "utils.h"
 #include "vector.h"
@@ -71,13 +70,13 @@ int main(int argc, char *argv[]) {
   ast_node *program = gen_ast(l->tokens);
   if (options.emit_ast) pretty_print_ast(program, 0);
 
-  ir_module *ir = gen_ir(options.filename, options.save_ir, program);
+  // ir_module *ir = gen_ir(options.filename, options.save_ir, program);
 
-  // check architecture before lowering
-  if (check_architecture() == -1) {
-    fprintf(stderr, "aarch64-darwin is currently the only supported architecture.");
-    exit(1);
-  }
+  // // check architecture before lowering
+  // if (check_architecture() == -1) {
+  //   fprintf(stderr, "aarch64-darwin is currently the only supported architecture.");
+  //   exit(1);
+  // }
 
   return EXIT_SUCCESS;
 }

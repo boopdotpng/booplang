@@ -1,22 +1,22 @@
+@declare print(ptr) ; supports char[] and Strings eventually
 function factorial(r1: i32) -> i32
 L1:
     cmp r1, 0
-    beq r1, L2
-    jmp L3
+    br eq, r1, 0, L2, L3   ; directly branch based on condition
 
 L2:
     r2: i32 = 1
-    jmp L4
+    br L4
 
 L3:
-    r2: i32 = r1 - 1
-    call factorial, r2 -> r2    ; recursive call result in r2
-    r2: i32 = r1 * r2
-    jmp L4
+    r3: i32 = r1 - 1
+    call factorial, r3 -> r4
+    r5: i32 = r1 * r4
+    br L4
 
 L4:
-    r3: i32 = phi(r2 from L2, r2 from L3)
-    ret r3
+    r6: i32 = phi(r2, L2, r5, L3)
+    ret r6
 end function
 
 function main(argc: i32, argv: ptr) -> void
@@ -26,33 +26,38 @@ L1:
     print r2
 
     ; first loop: for i = 1 to 10
-    r1: i32 = 1           ; initialize loop counter
-    jmp L2
+    r3: i32 = 1
+    br L2
 
 L2:
-    r1: i32 = phi(1, r1 from loop body)   ; phi node for loop counter
-    cmp r1, 10
-    bge r1, L3
-    print r1
-    r1: i32 = r1 + 1
-    jmp L2
+    r4: i32 = phi(r3, L1, r6, L2)
+    cmp r4, 10
+    br ge, r4, 10, L3, L5
+
+L5:
+    print r4
+    r6: i32 = r4 + 1
+    br L2
 
 L3:
     ; second loop: for i = 1.0 to 6.0
-    r1: f32 = 1.0         ; initialize float loop counter
-    jmp L4
+    r7: f32 = 1.0
+    br L4
 
 L4:
-    r1: f32 = φ(1.0, r1 from loop body)   ; phi node for float loop counter
-    cmp r1, 6.0
-    bge r1, L5
-    print r1 + 1.0
-    r1: f32 = r1 + 0.5
-    jmp L4
+    r8: f32 = phi(r7, L3, r10, L4)
+    cmp r8, 6.0
+    br ge, r8, 6.0, L5, L6
+
+L6:
+    r9: f32 = r8 + 1.0
+    print r9
+    r10: f32 = r8 + 0.5
+    br L4
 
 L5:
-    r1: ptr = alloc 14    ; allocate space for "hello, world\0"
-    store r1, "hello, world"
-    print r1
-    free r1
+    r11: ptr = alloc 14    ; heap allocation for string
+    store r11, "hello, world"
+    print r11
+    free r11
 end function
