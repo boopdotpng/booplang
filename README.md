@@ -6,10 +6,11 @@ You can take a look at the currently supported syntax at [examples/basic](https:
 Long term goal: Compile booplang with booplang.
 
 ## building
-This project uses Meson/ninja. 
-1. `meson setup build`
-2. `meson compile -C build` 
-3. Executable is `./build/boop`.
+This project uses `Make`. 
+```bash
+$ cd src
+$ make
+```
 
 ## todo list
 - [x] support for command line flags (output token stream or ast)
