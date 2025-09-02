@@ -11,6 +11,17 @@ This project uses `Make`.
 $ cd src
 $ make
 ```
+This will create a `build/` directory with the object files and the `boopc` binary.
+
+To run the compiler:
+```bash
+$ ./build/boopc
+```
+
+To clean the build files:
+```bash
+$ make clean
+```
 
 
 ## todo list

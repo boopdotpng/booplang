@@ -23,12 +23,19 @@ endif
 CFLAGS_DEBUG   = -g -Wall -Wextra -pedantic $(LLVM_CFLAGS)
 CFLAGS_RELEASE = -O2 -Wall -Wextra -pedantic $(LLVM_CFLAGS)
 
+# build directory
+BUILD_DIR = build
+
 # source and object files
 SRC = $(wildcard *.c)
-OBJ = $(SRC:.c=.o)
+OBJ = $(patsubst %.c, $(BUILD_DIR)/%.o, $(SRC))
 
 # output binary
-TARGET = ./boopc
+TARGET = $(BUILD_DIR)/boopc
+
+# create build directory
+$(BUILD_DIR):
+	mkdir -p $(BUILD_DIR)
 
 # default target: release
 all: release
@@ -46,11 +53,11 @@ $(TARGET): $(OBJ)
 	$(CC) $(CFLAGS) -o $(TARGET) $(OBJ) $(LLVM_LDFLAGS)
 
 # compile step
-%.o: %.c
+$(BUILD_DIR)/%.o: %.c | $(BUILD_DIR)
 	$(CC) $(CFLAGS) -c $< -o $@
 
 # clean generated files
 clean:
-	rm -f $(OBJ) $(TARGET)
+	rm -rf $(BUILD_DIR)
 
 .PHONY: all release debug clean
