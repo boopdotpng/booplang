@@ -8,9 +8,9 @@ Long term goal: Compile booplang with booplang.
 ## building
 This project uses `Make`. 
 ```bash
-$ cd src
-$ make
+$ make debug
 ```
+Or "release" for a release build. 
 This will create a `build/` directory with the object files and the `boopc` binary.
 
 To run the compiler:
