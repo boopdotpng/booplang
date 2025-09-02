@@ -1,4 +1,5 @@
 #include "ast.h"
+#include "ir.h"
 #include "lexer.h"
 #include "utils.h"
 #include "vector.h"
@@ -70,7 +71,9 @@ int main(int argc, char *argv[]) {
   ast_node *program = gen_ast(l->tokens);
   if (options.emit_ast) pretty_print_ast(program, 0);
 
-  // ir_module *ir = gen_ir(options.filename, options.save_ir, program);
+  // use LLVM-IR temporarily  
+  // this will save an executable directly unless save ir is enabled
+  gen_ir(options.filename, options.save_ir, program);
 
   // // check architecture before lowering
   // if (check_architecture() == -1) {

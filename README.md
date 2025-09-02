@@ -12,6 +12,7 @@ $ cd src
 $ make
 ```
 
+
 ## todo list
 - [x] support for command line flags (output token stream or ast)
 - [x] working ast generation
