@@ -71,7 +71,7 @@ int main(int argc, char *argv[]) {
   ast_node *program = gen_ast(l->tokens);
   if (options.emit_ast) pretty_print_ast(program, 0);
 
-  // use LLVM-IR temporarily  
+  // use LLVM-IR temporarily
   // this will save an executable directly unless save ir is enabled
   gen_ir(options.filename, options.save_ir, program);
 
