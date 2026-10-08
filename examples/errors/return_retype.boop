@@ -1,0 +1,9 @@
+fn f(n)
+  if n == 0
+    return 1
+  return 2.0
+
+fn main()
+  print(f(1))
+
+; error: f(int) returns int, but this return is float

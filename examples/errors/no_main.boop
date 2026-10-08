@@ -1,0 +1,4 @@
+fn helper()
+  print(1)
+
+; error: no fn main

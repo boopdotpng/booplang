@@ -1,0 +1,6 @@
+fn main()
+  s = 0
+  for i in 4
+    s = s + 0.5           ; s is an int REG; 0.5 can't adapt to int
+
+; error: mismatched types int and float, use float(x)

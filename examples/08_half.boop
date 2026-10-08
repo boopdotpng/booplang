@@ -1,0 +1,21 @@
+; half is native on apple silicon (FEAT_FP16): fadd h0, h1, h2 / fmla v0.8h ...
+
+fn dot(a, b)
+  s = 0.0h
+  for i in 4
+    s = s + a[i] * b[i]
+  return s
+
+fn main()
+  a = half[4]
+  b = half[4]
+  for i in 4
+    a[i] = half(i)
+    b[i] = 0.5            ; literal adapts to the element type
+  print(dot(a, b))
+  x = 1.0h
+  print(float(x) + 0.25)
+
+; out:
+; 3
+; 1.25

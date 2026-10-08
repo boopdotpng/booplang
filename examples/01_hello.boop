@@ -1,0 +1,8 @@
+; every program is a set of fns. main is the root sink; only fns reachable from it get traced.
+; no top-level statements.
+
+fn main()
+  print("hello, world")
+
+; out:
+; hello, world

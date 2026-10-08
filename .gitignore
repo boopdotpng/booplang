@@ -3,3 +3,5 @@ build/
 .cache
 .DS_Store
 *.o
+__pycache__/
+*.pyc

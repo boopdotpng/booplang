@@ -1,0 +1,19 @@
+; for i in n -> RANGE(n) ... END. i goes 0..n-1.
+
+fn main()
+  s = 0
+  for i in 10
+    s = s + i             ; loop-carried: acc.after(init, range) / store / end
+  print(s)
+  for i in 3
+    for j in 2
+      print(i, j)
+
+; out:
+; 45
+; 0 0
+; 0 1
+; 1 0
+; 1 1
+; 2 0
+; 2 1

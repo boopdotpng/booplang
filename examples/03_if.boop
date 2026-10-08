@@ -1,0 +1,19 @@
+; if / else. else is IF(not c). else if is just an else whose body is an if.
+
+fn sign(x)
+  if x < 0
+    return -1
+  else if x == 0
+    return 0
+  return 1
+
+fn main()
+  print(sign(-5), sign(0), sign(12))
+  y = 10
+  if y > 5
+    y = y - 5             ; reassigned in a branch -> y becomes a REG acc
+  print(y)
+
+; out:
+; -1 0 1
+; 5

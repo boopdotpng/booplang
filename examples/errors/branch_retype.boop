@@ -1,0 +1,6 @@
+fn main()
+  x = 1
+  if x > 0
+    x = 2.0               ; x's REG was typed int by its init
+
+; error: x is int, can't assign float inside a block

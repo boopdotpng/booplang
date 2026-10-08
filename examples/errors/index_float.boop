@@ -1,0 +1,5 @@
+fn main()
+  a = float[4]
+  print(a[1.0])
+
+; error: index must be int

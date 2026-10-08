@@ -1,0 +1,42 @@
+; fns are monomorphized per call site types. each instance is its own sink.
+; CALL refers to the callee by name, so recursion is fine.
+; return type comes from the returns that don't depend on a recursive call. base case can go anywhere.
+; arrays are passed by reference.
+
+fn fact(n)
+  if n == 0
+    return 1
+  return n * fact(n - 1)
+
+fn fib(n)
+  if n < 2
+    return n
+  return fib(n - 1) + fib(n - 2)
+
+fn depth(n)
+  if n > 0
+    return depth(n - 1) + 1    ; recursive return first, still fine
+  return 0
+
+fn sq(x)
+  return x * x
+
+fn scale(a, k)
+  for i in 4
+    a[i] = a[i] * k
+
+fn main()
+  print(fact(10))
+  print(fib(20))
+  print(depth(7))
+  print(sq(3), sq(1.5))   ; two instances: sq(int), sq(float)
+  v = [1.0, 2.0, 3.0, 4.0]
+  scale(v, 0.5)
+  print(v[0], v[3])
+
+; out:
+; 3628800
+; 6765
+; 7
+; 9 2.25
+; 0.5 2

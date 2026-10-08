@@ -1,0 +1,4 @@
+fn main()
+  s = "hi"
+
+; error: strings can only appear in print

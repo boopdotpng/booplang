@@ -1,0 +1,6 @@
+fn main()
+  for i in 3
+    t = i * 2
+  print(t)   ; names first bound inside a block die with it
+
+; error: t is not defined

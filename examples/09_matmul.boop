@@ -1,0 +1,23 @@
+; the "kernel". acc is local to the j loop, a fresh REG every iteration.
+
+fn matmul(a, b, c)
+  for i in 4
+    for j in 4
+      acc = 0.0
+      for k in 4
+        acc = acc + a[i*4 + k] * b[k*4 + j]
+      c[i*4 + j] = acc
+
+fn main()
+  a = float[16]
+  b = float[16]
+  c = float[16]
+  for i in 16
+    a[i] = float(i)
+  for i in 4
+    b[i*4 + i] = 1.0      ; identity
+  matmul(a, b, c)
+  print(c[5], c[15])
+
+; out:
+; 5 15

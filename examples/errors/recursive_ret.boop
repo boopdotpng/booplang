@@ -1,0 +1,7 @@
+fn f(n)
+  return f(n - 1)         ; every return depends on f itself: it can never return
+
+fn main()
+  print(f(3))
+
+; error: f(int) never returns a value

@@ -1,0 +1,6 @@
+x = 1
+
+fn main()
+  print(x)
+
+; error: statements must be inside a fn

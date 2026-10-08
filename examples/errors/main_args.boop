@@ -1,0 +1,4 @@
+fn main(argc, argv, envp)
+  print(argc)
+
+; error: main takes at most 2 args (argc, argv)
